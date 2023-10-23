@@ -1,0 +1,13 @@
+services:
+  postgres:
+    image: postgres:13.4
+    ports:
+      - 6432:5432
+    environment:
+      - POSTGRES_USER=GKAdmin
+      - POSTGRES_PASSWORD=GKPass
+      - POSTGRES_DB=gophkeeper
+    volumes:
+      - ./docker/postgres/data:/var/lib/postgresql/data
+    healthcheck:
+      test: "pg_isready -p 5432 -h 127.0.0.1 -d gophkeeper -U postgres"
