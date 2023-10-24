@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	pb "github.com/ArtemRivs/gophkeeper/internal/pkg/proto"
+
 	"github.com/ArtemRivs/gophkeeper/internal/server/config"
 	"github.com/ArtemRivs/gophkeeper/internal/server/db"
 	"github.com/ArtemRivs/gophkeeper/internal/server/handlers"
@@ -44,6 +46,7 @@ func main() {
 		grpc.Creds(creds),
 		grpc.UnaryInterceptor(handlers.CreateAuthUnaryInterceptor(newStorage)),
 	)
+	pb.RegisterGophKeeperServer(s, handlers.NewServer(newStorage))
 	fmt.Println("Gophkeeper started")
 
 	go func() {

@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package goph_keeper;
+import "google/protobuf/empty.proto";
+
+option go_package = "pkg/proto";
+
+service GophKeeper {
+  rpc Register(UserData) returns (LoginResult);
+  rpc Login(UserData) returns (LoginResult);
+  rpc AddLoginPassword(LoginPassword) returns (google.protobuf.Empty);
+}
+
+message UserData {
+  string login = 1;
+  string password = 2;
+}
+
+message LoginResult {
+  string token = 1;
+}
+
+message Key {
+  string key = 1;
+}
+
+message LoginPassword {
+  string login = 1;
+  string password = 2;
+  string meta = 3;
+  string key = 4;
+}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	pb "github.com/ArtemRivs/gophkeeper/internal/pkg/proto"
+
 	"github.com/ArtemRivs/gophkeeper/internal/server/storage"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -20,6 +22,7 @@ const ClientTokenCtx = "ClientToken"
 var Log = zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 type Server struct {
+	pb.UnimplementedGophKeeperServer
 	storage storage.IRepository
 }
 
