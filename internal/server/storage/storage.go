@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/ArtemRivs/gophkeeper/internal/client/console"
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -27,6 +28,9 @@ type IRepository interface {
 	GetClientByLogin(login string) (Client, *status.Status)
 	AddClient(login string, passwordHash string) *status.Status
 	AddLoginPassword(clientId uuid.UUID, key string, login string, password string, meta string) *status.Status
+	GetLoginPassword(clientId uuid.UUID, key string) (console.LoginPass, *status.Status)                           // GetLoginPassword - get existing login password data
+	UpdateLoginPassword(clientId uuid.UUID, key string, login string, password string, meta string) *status.Status // UpdateLoginPassword - update existing login password data
+	DeleteLoginPassword(clientId uuid.UUID, key string) *status.Status                                             // DeleteLoginPassword - delete existing login password data
 	Shutdown() error
 }
 
@@ -87,4 +91,46 @@ func (repo *Repository) AddLoginPassword(clientId uuid.UUID, key string, login s
 		return status.New(codes.Internal, "Failed to insert login_password value into db")
 	}
 	return status.New(codes.OK, "Value added")
+}
+
+func (repo *Repository) GetLoginPassword(clientId uuid.UUID, key string) (console.LoginPass, *status.Status) {
+	fmt.Println("GetLoginPassword")
+	row := repo.db.QueryRow("SELECT \"login\", \"password\", meta FROM login_password WHERE user_id = $1 AND \"key\" = $2 AND deleted is false", clientId, key)
+	var loginPassword console.LoginPass
+	if err := row.Scan(&loginPassword.Login, &loginPassword.Password, &loginPassword.Meta); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("Got no data for login_pass key = %v", key)
+			return console.LoginPass{}, status.New(codes.NotFound, "Login_pass doesn't exist for this user and key")
+		}
+		return console.LoginPass{}, status.New(codes.Internal, "Failed to update login_password value in db")
+	}
+	return loginPassword, status.New(codes.OK, "Value updated")
+}
+
+func (repo *Repository) UpdateLoginPassword(clientId uuid.UUID, key string, login string, password string, meta string) *status.Status {
+	fmt.Println("UpdateLoginPassword")
+	row := repo.db.QueryRow("UPDATE login_password SET \"login\" = $1, \"password\" = $2, meta = $3 WHERE user_id = $4 AND \"key\" = $5 AND deleted is false RETURNING id", login, password, meta, clientId, key)
+	var loginPasswordId string
+	if err := row.Scan(&loginPasswordId); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("No data for login_pass key = %v", key)
+			return status.New(codes.NotFound, "Login_pass doesn't exist for this user and key")
+		}
+		return status.New(codes.Internal, "Failed to update login_password value in db")
+	}
+	return status.New(codes.OK, "Value updated")
+}
+
+func (repo *Repository) DeleteLoginPassword(clientId uuid.UUID, key string) *status.Status {
+	fmt.Println("DeleteLoginPassword")
+	row := repo.db.QueryRow("UPDATE login_password SET deleted = true WHERE user_id = $1 AND \"key\" = $2 RETURNING id", clientId, key)
+	var loginPasswordId string
+	if err := row.Scan(&loginPasswordId); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("No data for login_pass key = %v", key)
+			return status.New(codes.NotFound, "Login_pass doesn't exist for this user and key")
+		}
+		return status.New(codes.Internal, "Failed to delete login_password value into db")
+	}
+	return status.New(codes.OK, "Value deleted")
 }
