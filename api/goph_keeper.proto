@@ -9,6 +9,10 @@ service GophKeeper {
   rpc Register(UserData) returns (LoginResult);
   rpc Login(UserData) returns (LoginResult);
   rpc AddLoginPassword(LoginPassword) returns (google.protobuf.Empty);
+  rpc AddText(stream Text) returns (google.protobuf.Empty);
+  rpc UpdateText(stream Text) returns (google.protobuf.Empty);
+  rpc GetText(Key) returns (stream Text);
+  rpc DeleteText(Key) returns (google.protobuf.Empty);  
 }
 
 message UserData {
@@ -29,4 +33,10 @@ message LoginPassword {
   string password = 2;
   string meta = 3;
   string key = 4;
+}
+
+message Text {
+  string data = 1;
+  string meta = 2;
+  string key = 3;
 }

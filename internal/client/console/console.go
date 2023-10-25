@@ -6,3 +6,9 @@ type LoginPass struct {
 	Meta     string
 	Key      string
 }
+
+type Text struct {
+	Path string
+	Meta string
+	Key  string
+}

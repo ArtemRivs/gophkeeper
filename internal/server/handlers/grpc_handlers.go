@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 
 	pb "github.com/ArtemRivs/gophkeeper/internal/pkg/proto"
@@ -91,46 +92,18 @@ func CreateAuthUnaryInterceptor(storage storage.IRepository) func(ctx context.Co
 	}
 }
 
-func (s *Server) Register(ctx context.Context, in *pb.UserData) (*pb.LoginResult, error) {
-	logger := zerolog.Ctx(ctx)
-	logger.Info().Msg("Register request")
-	passwordHash := GetHashForClient(in)
-	statusCode := s.storage.AddClient(in.Login, passwordHash)
-	if statusCode.Code() == codes.AlreadyExists {
-		logger.Info().Msgf("A client with login %v already exists", in.Login)
-		return &pb.LoginResult{}, status.New(codes.AlreadyExists, "A client with this login already exists").Err()
-	}
-	if statusCode.Code() != codes.OK {
-		logger.Error().Err(statusCode.Err())
-		return &pb.LoginResult{}, statusCode.Err()
-	} else {
-		logger.Info().Msgf("A client with login %v successfully registered", in.Login)
-		return &pb.LoginResult{Token: passwordHash}, nil
-	}
-}
-
-func (s *Server) Login(ctx context.Context, in *pb.UserData) (*pb.LoginResult, error) {
-	logger := zerolog.Ctx(ctx)
-	logger.Info().Msg("Login request")
-	client, statusCode := s.storage.GetClientByLogin(in.Login)
-	if statusCode.Code() != codes.OK {
-		logger.Error().Err(statusCode.Err()).Msgf("Unable to retrieve client data from storage, error: %v", statusCode.Message())
-		return &pb.LoginResult{}, status.New(codes.NotFound, "The client with this login doesn't exist").Err()
-	}
-	passwordHash := GetHashForClient(in)
-	if passwordHash != client.PasswordHash {
-		logger.Info().Msgf("An incorrect password was received for client %v", in.Login)
-		return &pb.LoginResult{}, status.New(codes.InvalidArgument, "Incorrect password").Err()
-	}
-	logger.Info().Msgf("Client with login %v has been successfully authorized", in.Login)
-	return &pb.LoginResult{Token: passwordHash}, nil
-}
-
 func GetHashForClient(in *pb.UserData) string {
 	h := hmac.New(sha256.New, []byte(SecretKey))
 	h.Write([]byte(in.Password))
 	passwordHash := h.Sum(nil)
 	return hex.EncodeToString(passwordHash)
+}
+
+func RemoveFileByName(filename string, logger *zerolog.Logger) {
+	err := os.Remove(filename)
+	if err != nil {
+		logger.Error().Err(err).Msg("Unable to delete file for text data")
+	}
 }
 
 func Encrypt(data []byte, nonce []byte) ([]byte, error) {
@@ -190,11 +163,47 @@ func Decrypt(data []byte, nonce []byte) ([]byte, error) {
 	Log.Debug().Msgf("decrypted: %v", src2)
 	return src2, nil
 }
+
+func (s *Server) Register(ctx context.Context, in *pb.UserData) (*pb.LoginResult, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msg("Register request")
+	passwordHash := GetHashForClient(in)
+	statusCode := s.storage.AddClient(in.Login, passwordHash)
+	if statusCode.Code() == codes.AlreadyExists {
+		logger.Info().Msgf("A client with login %v already exists", in.Login)
+		return &pb.LoginResult{}, status.New(codes.AlreadyExists, "A client with this login already exists").Err()
+	}
+	if statusCode.Code() != codes.OK {
+		logger.Error().Err(statusCode.Err())
+		return &pb.LoginResult{}, statusCode.Err()
+	} else {
+		logger.Info().Msgf("A client with login %v successfully registered", in.Login)
+		return &pb.LoginResult{Token: passwordHash}, nil
+	}
+}
+
+func (s *Server) Login(ctx context.Context, in *pb.UserData) (*pb.LoginResult, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msg("Login request")
+	client, statusCode := s.storage.GetClientByLogin(in.Login)
+	if statusCode.Code() != codes.OK {
+		logger.Error().Err(statusCode.Err()).Msgf("Unable to retrieve client data from storage, error: %v", statusCode.Message())
+		return &pb.LoginResult{}, status.New(codes.NotFound, "The client with this login doesn't exist").Err()
+	}
+	passwordHash := GetHashForClient(in)
+	if passwordHash != client.PasswordHash {
+		logger.Info().Msgf("An incorrect password was received for client %v", in.Login)
+		return &pb.LoginResult{}, status.New(codes.InvalidArgument, "Incorrect password").Err()
+	}
+	logger.Info().Msgf("Client with login %v has been successfully authorized", in.Login)
+	return &pb.LoginResult{Token: passwordHash}, nil
+}
+
 func (s *Server) GetLoginPassword(ctx context.Context, in *pb.Key) (*pb.LoginPassword, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("GetLoginPassword request")
 	if md, ok := metadata.FromIncomingContext(ctx); !ok {
-		logger.Error().Msg("Can't get metadata from request context")
+		logger.Error().Msg("Unable to get metadata from request context")
 		return &pb.LoginPassword{}, status.New(codes.Internal, "Unknown error").Err()
 	} else {
 		clientIDValue := md.Get(ClientIDCtx)[0]
@@ -207,7 +216,7 @@ func (s *Server) GetLoginPassword(ctx context.Context, in *pb.Key) (*pb.LoginPas
 		clientToken := []byte(clientTokens[0])
 		loginPassword, statusCode := s.storage.GetLoginPassword(clientId, in.Key)
 		if statusCode.Code() != codes.OK {
-			logger.Error().Err(statusCode.Err()).Msgf("Can't get login-password for key %v", in.Key)
+			logger.Error().Err(statusCode.Err()).Msgf("Unable to get login-password for key %v", in.Key)
 			return &pb.LoginPassword{}, statusCode.Err()
 		}
 		loginBytes, err := hex.DecodeString(loginPassword.Login)
@@ -255,7 +264,7 @@ func (s *Server) UpdateLoginPassword(ctx context.Context, in *pb.LoginPassword) 
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("UpdateLoginPassword request")
 	if md, ok := metadata.FromIncomingContext(ctx); !ok {
-		logger.Error().Msg("Can't get metadata from request context")
+		logger.Error().Msg("Unable to get metadata from request context")
 		return &emptypb.Empty{}, status.New(codes.Internal, "Unknown error").Err()
 	} else {
 		clientIDValue := md.Get(ClientIDCtx)[0]
@@ -299,7 +308,7 @@ func (s *Server) DeleteLoginPassword(ctx context.Context, in *pb.Key) (*emptypb.
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("DeleteLoginPassword request")
 	if md, ok := metadata.FromIncomingContext(ctx); !ok {
-		logger.Error().Msg("Can't get metadata from request context")
+		logger.Error().Msg("Unable to get metadata from request context")
 		return &emptypb.Empty{}, status.New(codes.Internal, "Unknown error").Err()
 	} else {
 		clientIDValue := md.Get(ClientIDCtx)[0]
@@ -314,6 +323,308 @@ func (s *Server) DeleteLoginPassword(ctx context.Context, in *pb.Key) (*emptypb.
 		} else {
 			logger.Info().Msg("Request completed successfully")
 		}
+		return &emptypb.Empty{}, statusCode.Err()
+	}
+}
+
+func (s *Server) AddText(stream pb.GophKeeper_AddTextServer) error {
+	logger := zerolog.Ctx(stream.Context())
+	logger.Info().Msg("AddText request")
+	if md, ok := metadata.FromIncomingContext(stream.Context()); !ok {
+		logger.Error().Msg("Unable to get metadata from request context")
+		return status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		logger.Debug().Msgf("MetaData %v", md)
+		clientIDValue := md.Get(ClientIDCtx)[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return errors.New("Unable to parse client login")
+		}
+		clientTokens := md.Get(ClientTokenCtx)
+		clientToken := []byte(clientTokens[0])
+		text, err := stream.Recv()
+		if err != nil && err != io.EOF {
+			logger.Error().Err(err).Msg("Got error while receiving messages from stream")
+			return errors.New("Unable to receive request message")
+		}
+		key := text.Key
+		metaBytes, err := hex.DecodeString(text.Meta)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode text metadata")
+			return errors.New("Unable to parse meta data")
+		}
+		meta, err := Encrypt(metaBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt text metadata")
+			return errors.New("Unable to encrypt meta data")
+		}
+		filename := "text_" + clientId.String() + "_" + key + ".txt"
+		f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0777)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to open file for text saving")
+			return errors.New("Unable to save text data")
+		}
+		defer f.Close()
+		writer := bufio.NewWriter(f)
+		dataBytes, err := hex.DecodeString(text.Data)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode text data")
+			return errors.New("Unable to decode text data")
+		}
+		data, err := Encrypt(dataBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt text data")
+			return errors.New("Unable to encrypt text data")
+		}
+		_, err = writer.Write(data)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to save text data")
+			return errors.New("Unable to save text data")
+		}
+		for {
+			text, err := stream.Recv()
+			if err == io.EOF {
+				err := writer.Flush()
+				if err != nil {
+					logger.Error().Err(err).Msg("Unable to flush buffer to file")
+					return errors.New("Unable to save text data")
+				}
+				statusCode := s.storage.AddText(clientId, key, filename, hex.EncodeToString(meta))
+
+				if statusCode.Err() != nil {
+					logger.Error().Err(statusCode.Err())
+					RemoveFileByName(filename, logger)
+					err = stream.SendAndClose(&emptypb.Empty{})
+					if err != nil {
+						logger.Error().Err(err).Msg("Error while closing stream")
+					}
+					return statusCode.Err()
+				}
+				logger.Info().Msg("Request completed successfully")
+				return stream.SendAndClose(&emptypb.Empty{})
+			} else if err != nil {
+				logger.Error().Err(err).Msg("Error while receiving messages from stream")
+				return errors.New("Unable to receive request message")
+			}
+			dataBytes, err := hex.DecodeString(text.Data)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to decode text data")
+				RemoveFileByName(filename, logger)
+				return errors.New("Unable to decode text data")
+			}
+			data, err := Encrypt(dataBytes, clientToken)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to encrypt text data")
+				RemoveFileByName(filename, logger)
+				return errors.New("Unable to encrypt text data")
+			}
+			_, err = writer.Write(data)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to save text data")
+				RemoveFileByName(filename, logger)
+				return errors.New("Unable to save text data")
+			}
+		}
+	}
+}
+
+func (s *Server) GetText(in *pb.Key, stream pb.GophKeeper_GetTextServer) error {
+	logger := zerolog.Ctx(stream.Context())
+	logger.Info().Msg("GetText request")
+	if md, ok := metadata.FromIncomingContext(stream.Context()); !ok {
+		logger.Error().Msg("Unable to get metadata from request context")
+		return status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		logger.Debug().Msgf("MetaData %v", md)
+		clientIDValue := md.Get(ClientIDCtx)[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return errors.New("Unable to parse client login")
+		}
+		clientTokens := md.Get(ClientTokenCtx)
+		clientToken := []byte(clientTokens[0])
+		text, statusCode := s.storage.GetText(clientId, in.Key)
+		if statusCode.Code() != codes.OK {
+			logger.Error().Err(statusCode.Err()).Msgf("Unable to get text from storage for key %v", in.Key)
+			return statusCode.Err()
+		}
+		logger.Debug().Msgf("Text from storage %v", text)
+		f, err := os.Open(text.Path)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to open file with text data")
+			return errors.New("Unable to get text data")
+		}
+		defer f.Close()
+		reader := bufio.NewReader(f)
+		chunk := make([]byte, 2032)
+		for {
+			n, err := reader.Read(chunk)
+			if err == io.EOF {
+				logger.Info().Msg("Request completed successfully")
+				return nil
+			}
+			slicedChunk := chunk[:n]
+			chunkDecoded, err := Decrypt(slicedChunk, clientToken)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to decrypt text chunk data")
+				return errors.New("Unable to get text data")
+			}
+			metaBytes, err := hex.DecodeString(text.Meta)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to decode text chunk data")
+				return errors.New("Unable to get text data")
+			}
+			metaDecoded, err := Decrypt(metaBytes, clientToken)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to decrypt text meta data")
+				return errors.New("Can't get text metadata")
+			}
+			err = stream.Send(&pb.Text{
+				Key:  text.Key,
+				Data: hex.EncodeToString(chunkDecoded),
+				Meta: hex.EncodeToString(metaDecoded),
+			})
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to send text chunk data")
+				return errors.New("Unable to send text data")
+			}
+		}
+	}
+}
+
+func (s *Server) UpdateText(stream pb.GophKeeper_UpdateTextServer) error {
+	logger := zerolog.Ctx(stream.Context())
+	logger.Info().Msg("UpdateText request")
+	if md, ok := metadata.FromIncomingContext(stream.Context()); !ok {
+		logger.Error().Msg("Can't get metadata from request context")
+		return status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		clientIDValue := md.Get(ClientIDCtx)[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return errors.New("Unable to parse client login")
+		}
+		clientTokens := md.Get(ClientTokenCtx)
+		clientToken := []byte(clientTokens[0])
+		text, err := stream.Recv()
+		if err != nil {
+			logger.Error().Err(err).Msg("Can't get text request batch")
+			return errors.New("Can't get request")
+		}
+		key := text.Key
+		metaBytes, err := hex.DecodeString(text.Meta)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode text metadata")
+			return errors.New("Unable to decode meta data")
+		}
+		meta, err := Encrypt(metaBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt text metadata")
+			return errors.New("Unable to encrypt meta data")
+		}
+		filename := "text_" + clientId.String() + "_" + key + ".txt"
+		f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0777)
+		if err != nil {
+			logger.Error().Err(err).Msgf("Unable to open file for text saving %v", filename)
+			return errors.New("Unable to save text data")
+		}
+		defer f.Close()
+		writer := bufio.NewWriter(f)
+		dataBytes, err := hex.DecodeString(text.Data)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode text data")
+			return errors.New("Unable to decode text data")
+		}
+		data, err := Encrypt(dataBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt text data")
+			return errors.New("Unable to encrypt text data")
+		}
+		_, err = writer.Write(data)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to save text data")
+			return errors.New("Unable to save text data")
+		}
+		for {
+			text, err := stream.Recv()
+			if err == io.EOF {
+				err := writer.Flush()
+				if err != nil {
+					logger.Error().Err(err).Msg("Unable to flush buffer to file")
+					RemoveFileByName(filename, logger)
+					return errors.New("Unable to save file")
+				}
+				statusCode := s.storage.UpdateText(clientId, key, filename, hex.EncodeToString(meta))
+				if statusCode.Code() != codes.OK {
+					logger.Error().Err(statusCode.Err()).Msgf("Eror from storage while updating text: %v", statusCode.Message())
+					RemoveFileByName(filename, logger)
+					err := stream.SendAndClose(&emptypb.Empty{})
+					if err != nil {
+						logger.Error().Err(err).Msg("Error while closing stream")
+					}
+					return statusCode.Err()
+				}
+				return stream.SendAndClose(&emptypb.Empty{})
+			} else if err != nil {
+				logger.Error().Err(err).Msg("Error while receiving messages from stream")
+				return errors.New("Unable to receive request message")
+			}
+			dataBytes, err := hex.DecodeString(text.Data)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to decode text data")
+				RemoveFileByName(filename, logger)
+				return errors.New("Unable to decode text data")
+			}
+			data, err := Encrypt(dataBytes, clientToken)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to encrypt text data")
+				RemoveFileByName(filename, logger)
+				return errors.New("Unable to encrypt text data")
+			}
+			_, err = writer.Write(data)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to save text data")
+				RemoveFileByName(filename, logger)
+				return errors.New("Unable to save text data")
+			}
+		}
+	}
+}
+
+func (s *Server) DeleteText(ctx context.Context, in *pb.Key) (*emptypb.Empty, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msg("DeleteText request")
+	if md, ok := metadata.FromIncomingContext(ctx); !ok {
+		logger.Error().Msg("Unable to get metadata from request context")
+		return &emptypb.Empty{}, status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		logger.Debug().Msgf("MetaData %v", md)
+		clientIDValue := md.Get(ClientIDCtx)[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return &emptypb.Empty{}, errors.New("Unable to parse client login")
+		}
+		text, statusCode := s.storage.GetText(clientId, in.Key)
+		if statusCode.Code() != codes.OK {
+			logger.Error().Err(statusCode.Err()).Msgf("Unable to get text data from storage, error %v", statusCode.Message())
+			return &emptypb.Empty{}, statusCode.Err()
+		}
+		logger.Debug().Msgf("Text data %v", text)
+		err = os.Remove(text.Path)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to delete text file")
+			return &emptypb.Empty{}, err
+		}
+		statusCode = s.storage.DeleteText(clientId, text.Key)
+		if statusCode.Code() != codes.OK {
+			logger.Error().Err(statusCode.Err()).Msgf("Unable to delete text from storage for key %v", text.Key)
+			return &emptypb.Empty{}, statusCode.Err()
+		}
+		logger.Info().Msg("Request completed successfully")
 		return &emptypb.Empty{}, statusCode.Err()
 	}
 }

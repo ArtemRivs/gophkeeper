@@ -31,6 +31,10 @@ type IRepository interface {
 	GetLoginPassword(clientId uuid.UUID, key string) (console.LoginPass, *status.Status)                           // GetLoginPassword - get existing login password data
 	UpdateLoginPassword(clientId uuid.UUID, key string, login string, password string, meta string) *status.Status // UpdateLoginPassword - update existing login password data
 	DeleteLoginPassword(clientId uuid.UUID, key string) *status.Status                                             // DeleteLoginPassword - delete existing login password data
+	AddText(clientId uuid.UUID, key string, path string, meta string) *status.Status
+	GetText(clientId uuid.UUID, key string) (console.Text, *status.Status)
+	UpdateText(clientId uuid.UUID, key string, filename string, meta string) *status.Status
+	DeleteText(clientId uuid.UUID, key string) *status.Status
 	Shutdown() error
 }
 
@@ -133,4 +137,68 @@ func (repo *Repository) DeleteLoginPassword(clientId uuid.UUID, key string) *sta
 		return status.New(codes.Internal, "Failed to delete login_password value into db")
 	}
 	return status.New(codes.OK, "Value deleted")
+}
+
+func (repo *Repository) AddText(clientId uuid.UUID, key string, path string, meta string) *status.Status {
+	fmt.Println("AddText")
+	row := repo.db.QueryRow("INSERT INTO text (user_id, \"key\", \"path\", meta) VALUES ($1, $2, $3, $4) RETURNING id", clientId, key, path, meta)
+	var textIdDb string
+	if err := row.Scan(&textIdDb); err != nil {
+		if errors.As(err, &psqlErr) {
+			if psqlErr.Code == pgerrcode.UniqueViolation {
+				return status.New(codes.AlreadyExists, "Text for this user and key already exists")
+			}
+		}
+		return status.New(codes.Internal, "Unable to insert text value into db")
+	}
+	return status.New(codes.OK, "Value added")
+}
+
+func (repo *Repository) GetText(clientId uuid.UUID, key string) (console.Text, *status.Status) {
+	fmt.Println("GetText")
+	row := repo.db.QueryRow("SELECT \"path\", meta FROM text WHERE user_id = $1 AND \"key\" = $2 AND deleted is false", clientId, key)
+	text := console.Text{Key: key}
+	if err := row.Scan(&text.Path, &text.Meta); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("No data for text key = %v", key)
+			return console.Text{}, status.New(codes.NotFound, "Text for this user and key doesn't exist")
+		}
+		return text, status.New(codes.Internal, "Unable to insert text value into db")
+	}
+	return text, status.New(codes.OK, "Text found")
+}
+
+func (repo *Repository) UpdateText(clientId uuid.UUID, key string, filename string, meta string) *status.Status {
+	fmt.Println("UpdateText")
+	row := repo.db.QueryRow("UPDATE text SET \"path\" = $1, meta = $2 WHERE user_id = $3 AND \"key\" = $4 AND deleted is false RETURNING id", filename, meta, clientId, key)
+	var textIdDb string
+	if err := row.Scan(&textIdDb); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("No data for text key = %v", key)
+			return status.New(codes.NotFound, "Text for this user and key doesn't exist")
+		}
+		if errors.As(err, &psqlErr) {
+			if psqlErr.Code == pgerrcode.ForeignKeyViolation {
+				return status.New(codes.NotFound, "Text for this user and key doesn't exist")
+			}
+		}
+		return status.New(codes.Internal, "Unable to update text value into db")
+	}
+	return status.New(codes.OK, "Text updated")
+}
+
+func (repo *Repository) DeleteText(clientId uuid.UUID, key string) *status.Status {
+	fmt.Println("DeleteText")
+	row := repo.db.QueryRow("UPDATE text SET deleted = true WHERE user_id = $1 AND \"key\" = $2 RETURNING id", clientId, key)
+	var textIdDb string
+	if err := row.Scan(&textIdDb); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("Got no data for text key = %v", key)
+			return status.New(codes.NotFound, "Text for this user and key doesn't exist")
+		}
+		fmt.Printf("\nGot error in DeleteText %v\n", err)
+		return status.New(codes.Internal, "Unable to update text value into db")
+	}
+	return status.New(codes.OK, "Text deleted")
+
 }
