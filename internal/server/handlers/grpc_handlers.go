@@ -479,7 +479,7 @@ func (s *Server) GetText(in *pb.Key, stream pb.GophKeeper_GetTextServer) error {
 			metaDecoded, err := Decrypt(metaBytes, clientToken)
 			if err != nil {
 				logger.Error().Err(err).Msg("Unable to decrypt text meta data")
-				return errors.New("Can't get text metadata")
+				return errors.New("Unable to get text metadata")
 			}
 			err = stream.Send(&pb.Text{
 				Key:  text.Key,
@@ -498,7 +498,7 @@ func (s *Server) UpdateText(stream pb.GophKeeper_UpdateTextServer) error {
 	logger := zerolog.Ctx(stream.Context())
 	logger.Info().Msg("UpdateText request")
 	if md, ok := metadata.FromIncomingContext(stream.Context()); !ok {
-		logger.Error().Msg("Can't get metadata from request context")
+		logger.Error().Msg("Unable to get metadata from request context")
 		return status.New(codes.Internal, "Unknown error").Err()
 	} else {
 		clientIDValue := md.Get(ClientIDCtx)[0]
@@ -511,8 +511,8 @@ func (s *Server) UpdateText(stream pb.GophKeeper_UpdateTextServer) error {
 		clientToken := []byte(clientTokens[0])
 		text, err := stream.Recv()
 		if err != nil {
-			logger.Error().Err(err).Msg("Can't get text request batch")
-			return errors.New("Can't get request")
+			logger.Error().Err(err).Msg("Unable to get text request batch")
+			return errors.New("Unable to get request")
 		}
 		key := text.Key
 		metaBytes, err := hex.DecodeString(text.Meta)
@@ -626,5 +626,286 @@ func (s *Server) DeleteText(ctx context.Context, in *pb.Key) (*emptypb.Empty, er
 		}
 		logger.Info().Msg("Request completed successfully")
 		return &emptypb.Empty{}, statusCode.Err()
+	}
+}
+
+func (s *Server) AddBinary(stream pb.GophKeeper_AddBinaryServer) error {
+	logger := zerolog.Ctx(stream.Context())
+	logger.Info().Msg("AddBinary request")
+	if md, ok := metadata.FromIncomingContext(stream.Context()); !ok {
+		logger.Error().Msg("Unable to get metadata from request context")
+		return status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		logger.Debug().Msgf("MetaData %v", md)
+		clientIDValue := md.Get(ClientIDCtx)[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return errors.New("Unable to parse client login")
+		}
+		clientTokens := md.Get(ClientTokenCtx)
+		clientToken := []byte(clientTokens[0])
+		binary, err := stream.Recv()
+		if err != nil && err != io.EOF {
+			logger.Error().Err(err).Msg("Failed to get binary request batch")
+			return errors.New("Failed to get request")
+		}
+		key := binary.Key
+		metaBytes, err := hex.DecodeString(binary.Meta)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode metadata")
+			return errors.New("Unable to encrypt bytes data")
+		}
+		meta, err := Encrypt(metaBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt bytes metadata")
+			return errors.New("Unable to encrypt bytes data")
+		}
+		filename := "binary_" + clientId.String() + "_" + key + ".bin"
+		f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0777)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to open file for binary data")
+			return errors.New("Unable to save binary data")
+		}
+		defer f.Close()
+		writer := bufio.NewWriter(f)
+		data, err := Encrypt(binary.Data, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt binary data")
+			return errors.New("Unable to encrypt binary data")
+		}
+		_, err = writer.Write(data)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to save binary data")
+			RemoveFileByName(filename, logger)
+			return errors.New("Unable to save binary data")
+		}
+		for {
+			binary, err := stream.Recv()
+			if err == io.EOF {
+				err := writer.Flush()
+				if err != nil {
+					logger.Error().Err(err).Msg("Unable to flush binary data")
+					RemoveFileByName(filename, logger)
+					return errors.New("Unable to save binary data")
+				}
+				statusCode := s.storage.AddBinary(clientId, key, filename, hex.EncodeToString(meta))
+				if statusCode.Code() != codes.OK {
+					logger.Error().Err(statusCode.Err()).Msgf("Unable to add binary data to storage, got error: %v", statusCode.Message())
+					RemoveFileByName(filename, logger)
+					err := stream.SendAndClose(&emptypb.Empty{})
+					if err != nil {
+						logger.Error().Err(err).Msg("Unable to send binary data reponse")
+					}
+					return errors.New("Unable to save binary data to storage")
+				}
+				logger.Info().Msg("Request complited successfully")
+				return stream.SendAndClose(&emptypb.Empty{})
+			} else if err != nil {
+				logger.Error().Err(err).Msg("Failed to get binary data request")
+				RemoveFileByName(filename, logger)
+				return errors.New("Failed to get binary data request")
+			}
+			data, err := Encrypt(binary.Data, clientToken)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to encrypt binary data")
+				RemoveFileByName(filename, logger)
+				return errors.New("Unable to encrypt binary data")
+			}
+			_, err = writer.Write(data)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to save binary data")
+				RemoveFileByName(filename, logger)
+				return errors.New("Unable to save binary data")
+			}
+		}
+	}
+}
+
+func (s *Server) GetBinary(in *pb.Key, stream pb.GophKeeper_GetBinaryServer) error {
+	logger := zerolog.Ctx(stream.Context())
+	logger.Info().Msg("GetBinary request")
+	if md, ok := metadata.FromIncomingContext(stream.Context()); !ok {
+		logger.Error().Msg("Failed to get metadata from request context")
+		return status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		logger.Debug().Msgf("MetaData %v", md)
+		clientIDValue := md.Get(ClientIDCtx)[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return errors.New("Unable to parse client login")
+		}
+		clientTokens := md.Get(ClientTokenCtx)
+		clientToken := []byte(clientTokens[0])
+		binary, statusCode := s.storage.GetBinary(clientId, in.Key)
+		if statusCode.Code() != codes.OK {
+			logger.Error().Err(statusCode.Err())
+			return statusCode.Err()
+		}
+		logger.Info().Msgf("Got binary from storage %v", binary)
+		f, err := os.Open(binary.Path)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to open file for binary data")
+			return errors.New("Failed to get binary data")
+		}
+		defer f.Close()
+		reader := bufio.NewReader(f)
+		chunk := make([]byte, 2032)
+		for {
+			n, err := reader.Read(chunk)
+			if err == io.EOF {
+				logger.Info().Msg("Request complited successfully")
+				return nil
+			}
+			slicedChunk := chunk[:n]
+			chunkDecoded, err := Decrypt(slicedChunk, clientToken)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to decrypt binary chunk metadata")
+				return errors.New("Unable to decrypt binary data")
+			}
+			metaBytes, err := hex.DecodeString(binary.Meta)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to decode binary metadata")
+				return errors.New("Unable to decode meta data")
+			}
+			metaDecoded, err := Decrypt(metaBytes, clientToken)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to decrypt binary metadata")
+				return errors.New("Unable to decrypt meta data")
+			}
+			err = stream.Send(&pb.Binary{
+				Key:  binary.Key,
+				Data: chunkDecoded,
+				Meta: hex.EncodeToString(metaDecoded),
+			})
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to send binary data response")
+				return errors.New("Unable to send binary data response")
+			}
+		}
+	}
+}
+
+func (s *Server) UpdateBinary(stream pb.GophKeeper_UpdateBinaryServer) error {
+	logger := zerolog.Ctx(stream.Context())
+	logger.Info().Msg("UpdateBinary request")
+	if md, ok := metadata.FromIncomingContext(stream.Context()); !ok {
+		logger.Error().Msg("Failed to get metadata from request context")
+		return status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		logger.Debug().Msgf("MetaData %v", md)
+		clientIDValue := md.Get(ClientIDCtx)[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return errors.New("Unable to parse client login")
+		}
+		clientTokens := md.Get(ClientTokenCtx)
+		clientToken := []byte(clientTokens[0])
+		binary, err := stream.Recv()
+		if err != nil && err != io.EOF {
+			logger.Error().Err(err).Msg("Failed to get binary request batch")
+			return errors.New("Failed to get request")
+		}
+		key := binary.Key
+		metaBytes, err := hex.DecodeString(binary.Meta)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode binary metadata")
+			return errors.New("Unable to decode meta data")
+		}
+		meta, err := Encrypt(metaBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt binary metadata")
+			return errors.New("Unable to encrypt binary meta data")
+		}
+		filename := "binary_" + clientId.String() + "_" + key + ".bin"
+		f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0777)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to open file for binary data")
+			return errors.New("Unable to save binary data")
+		}
+		defer f.Close()
+		writer := bufio.NewWriter(f)
+		data, err := Encrypt(binary.Data, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt binary data")
+			return errors.New("Unable to encrypt binary data")
+		}
+		_, err = writer.Write(data)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to save binary data")
+			RemoveFileByName(filename, logger)
+			return errors.New("Unable to save binary data")
+		}
+		for {
+			binary, err := stream.Recv()
+			if err == io.EOF {
+				err := writer.Flush()
+				if err != nil {
+					logger.Error().Err(err).Msg("Unable to flush binary data")
+					RemoveFileByName(filename, logger)
+					return errors.New("Unable to save binary data")
+				}
+				statusCode := s.storage.UpdateBinary(clientId, key, filename, hex.EncodeToString(meta))
+				if statusCode.Code() != codes.OK {
+					logger.Error().Err(statusCode.Err()).Msgf("Got error while updating binary in storage: %v", statusCode.Message())
+					RemoveFileByName(filename, logger)
+					return errors.New("Unable to save binary data")
+				}
+				return stream.SendAndClose(&emptypb.Empty{})
+			} else if err != nil {
+				logger.Error().Err(err).Msg("Failed to get binary data")
+				RemoveFileByName(filename, logger)
+				return errors.New("Failed to get binary data")
+			}
+			data, err := Encrypt(binary.Data, clientToken)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to encrypt binary data")
+				RemoveFileByName(filename, logger)
+				return errors.New("Unable to encrypt binary data")
+			}
+			_, err = writer.Write(data)
+			if err != nil {
+				logger.Error().Err(err).Msg("Unable to write binary data to buffer")
+				RemoveFileByName(filename, logger)
+				return errors.New("Unable to save binary data")
+			}
+		}
+	}
+}
+
+func (s *Server) DeleteBinary(ctx context.Context, in *pb.Key) (*emptypb.Empty, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msg("DeleteBinary request")
+	if md, ok := metadata.FromIncomingContext(ctx); !ok {
+		logger.Error().Msg("Failed to get metadata from request context")
+		return &emptypb.Empty{}, status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		logger.Debug().Msgf("MetaData %v", md)
+		clientIDValue := md.Get(ClientIDCtx)[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return &emptypb.Empty{}, errors.New("Unable to parse client login")
+		}
+		binary, statusCode := s.storage.GetBinary(clientId, in.Key)
+		if statusCode.Code() != codes.OK {
+			logger.Error().Err(statusCode.Err()).Msgf("Error from storage while getting binary data: %v", statusCode.Message())
+			return &emptypb.Empty{}, errors.New("Error from storage while getting binary data")
+		}
+		logger.Info().Msgf("Binary data %v", binary)
+		err = os.Remove(binary.Path)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to delete binary file")
+			return &emptypb.Empty{}, errors.New("Unable to delete binary")
+		}
+		statusCode = s.storage.DeleteBinary(clientId, binary.Key)
+		if statusCode.Code() != codes.OK {
+			logger.Error().Err(statusCode.Err()).Msgf("Error from storage while deleting binary data: %v", statusCode.Message())
+			return &emptypb.Empty{}, errors.New("Error from storage while deleting binary data")
+		}
+		logger.Info().Msg("Request complited successfully")
+		return &emptypb.Empty{}, nil
 	}
 }

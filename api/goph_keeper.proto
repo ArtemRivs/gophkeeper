@@ -12,7 +12,11 @@ service GophKeeper {
   rpc AddText(stream Text) returns (google.protobuf.Empty);
   rpc UpdateText(stream Text) returns (google.protobuf.Empty);
   rpc GetText(Key) returns (stream Text);
-  rpc DeleteText(Key) returns (google.protobuf.Empty);  
+  rpc DeleteText(Key) returns (google.protobuf.Empty);
+  rpc AddBinary(stream Binary) returns (google.protobuf.Empty);
+  rpc UpdateBinary(stream Binary) returns (google.protobuf.Empty);
+  rpc GetBinary(Key) returns (stream Binary);
+  rpc DeleteBinary(Key) returns (google.protobuf.Empty);  
 }
 
 message UserData {
@@ -37,6 +41,12 @@ message LoginPassword {
 
 message Text {
   string data = 1;
+  string meta = 2;
+  string key = 3;
+}
+
+message Binary {
+  bytes data = 1;
   string meta = 2;
   string key = 3;
 }

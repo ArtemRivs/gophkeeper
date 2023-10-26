@@ -35,6 +35,10 @@ type IRepository interface {
 	GetText(clientId uuid.UUID, key string) (console.Text, *status.Status)
 	UpdateText(clientId uuid.UUID, key string, filename string, meta string) *status.Status
 	DeleteText(clientId uuid.UUID, key string) *status.Status
+	AddBinary(clientId uuid.UUID, key string, path string, meta string) *status.Status
+	GetBinary(clientId uuid.UUID, key string) (console.Bytes, *status.Status)
+	UpdateBinary(clientId uuid.UUID, key string, filename string, meta string) *status.Status
+	DeleteBinary(clientId uuid.UUID, key string) *status.Status
 	Shutdown() error
 }
 
@@ -200,5 +204,69 @@ func (repo *Repository) DeleteText(clientId uuid.UUID, key string) *status.Statu
 		return status.New(codes.Internal, "Unable to update text value into db")
 	}
 	return status.New(codes.OK, "Text deleted")
+
+}
+
+func (repo *Repository) AddBinary(clientId uuid.UUID, key string, path string, meta string) *status.Status {
+	fmt.Println("AddBinary")
+	row := repo.db.QueryRow("INSERT INTO \"binary\" (user_id, \"key\", \"path\", meta) VALUES ($1, $2, $3, $4) RETURNING id", clientId, key, path, meta)
+	var binaryIdDb string
+	if err := row.Scan(&binaryIdDb); err != nil {
+		if errors.As(err, &psqlErr) {
+			if psqlErr.Code == pgerrcode.UniqueViolation {
+				return status.New(codes.AlreadyExists, "Binary for this user and key already exists")
+			}
+		}
+		return status.New(codes.Internal, "Failed to insert binary value into db")
+	}
+	return status.New(codes.OK, "Value added")
+}
+
+func (repo *Repository) GetBinary(clientId uuid.UUID, key string) (console.Bytes, *status.Status) {
+	fmt.Println("GetBinary")
+	row := repo.db.QueryRow("SELECT \"path\", meta FROM \"binary\" WHERE user_id = $1 AND \"key\" = $2 AND deleted is false", clientId, key)
+	binary := console.Bytes{Key: key}
+	if err := row.Scan(&binary.Path, &binary.Meta); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("Got no data for binary key = %v", key)
+			return console.Bytes{}, status.New(codes.NotFound, "Binary for this user and key doesn't exist")
+		}
+		return binary, status.New(codes.Internal, "Failed to insert binary value into db")
+	}
+	return binary, status.New(codes.OK, "Binary found")
+}
+
+func (repo *Repository) UpdateBinary(clientId uuid.UUID, key string, filename string, meta string) *status.Status {
+	fmt.Println("UpdateBinary")
+	row := repo.db.QueryRow("UPDATE \"binary\" SET \"path\" = $1, meta = $2 WHERE user_id = $3 AND \"key\" = $4 AND deleted is false RETURNING id", filename, meta, clientId, key)
+	var binaryIdDb string
+	if err := row.Scan(&binaryIdDb); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("No data for binary key = %v", key)
+			return status.New(codes.NotFound, "Binary for this user and key doesn't exist")
+		}
+		if errors.As(err, &psqlErr) {
+			if psqlErr.Code == pgerrcode.ForeignKeyViolation {
+				return status.New(codes.NotFound, "Binary value for this user and key doesn't exist")
+			}
+		}
+		return status.New(codes.Internal, "Failed to update binary value into db")
+	}
+	return status.New(codes.OK, "Binary updated")
+}
+
+func (repo *Repository) DeleteBinary(clientId uuid.UUID, key string) *status.Status {
+	fmt.Println("DeleteBinary")
+	row := repo.db.QueryRow("UPDATE \"binary\" SET deleted = true WHERE user_id = $1 AND \"key\" = $2 RETURNING id", clientId, key)
+	var binaryIdDb string
+	if err := row.Scan(&binaryIdDb); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("No data for binary key = %v", key)
+			return status.New(codes.NotFound, "Binary for this user and key doesn't exist")
+		}
+		fmt.Printf("\nError in DeleteBinary %v\n", err)
+		return status.New(codes.Internal, "Failed to update binary value into db")
+	}
+	return status.New(codes.OK, "Binary deleted")
 
 }

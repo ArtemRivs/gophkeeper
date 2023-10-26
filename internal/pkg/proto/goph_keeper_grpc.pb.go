@@ -27,6 +27,10 @@ const (
 	GophKeeper_UpdateText_FullMethodName       = "/goph_keeper.GophKeeper/UpdateText"
 	GophKeeper_GetText_FullMethodName          = "/goph_keeper.GophKeeper/GetText"
 	GophKeeper_DeleteText_FullMethodName       = "/goph_keeper.GophKeeper/DeleteText"
+	GophKeeper_AddBinary_FullMethodName        = "/goph_keeper.GophKeeper/AddBinary"
+	GophKeeper_UpdateBinary_FullMethodName     = "/goph_keeper.GophKeeper/UpdateBinary"
+	GophKeeper_GetBinary_FullMethodName        = "/goph_keeper.GophKeeper/GetBinary"
+	GophKeeper_DeleteBinary_FullMethodName     = "/goph_keeper.GophKeeper/DeleteBinary"
 )
 
 // GophKeeperClient is the client API for GophKeeper service.
@@ -40,6 +44,10 @@ type GophKeeperClient interface {
 	UpdateText(ctx context.Context, opts ...grpc.CallOption) (GophKeeper_UpdateTextClient, error)
 	GetText(ctx context.Context, in *Key, opts ...grpc.CallOption) (GophKeeper_GetTextClient, error)
 	DeleteText(ctx context.Context, in *Key, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	AddBinary(ctx context.Context, opts ...grpc.CallOption) (GophKeeper_AddBinaryClient, error)
+	UpdateBinary(ctx context.Context, opts ...grpc.CallOption) (GophKeeper_UpdateBinaryClient, error)
+	GetBinary(ctx context.Context, in *Key, opts ...grpc.CallOption) (GophKeeper_GetBinaryClient, error)
+	DeleteBinary(ctx context.Context, in *Key, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type gophKeeperClient struct {
@@ -186,6 +194,115 @@ func (c *gophKeeperClient) DeleteText(ctx context.Context, in *Key, opts ...grpc
 	return out, nil
 }
 
+func (c *gophKeeperClient) AddBinary(ctx context.Context, opts ...grpc.CallOption) (GophKeeper_AddBinaryClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GophKeeper_ServiceDesc.Streams[3], GophKeeper_AddBinary_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &gophKeeperAddBinaryClient{stream}
+	return x, nil
+}
+
+type GophKeeper_AddBinaryClient interface {
+	Send(*Binary) error
+	CloseAndRecv() (*emptypb.Empty, error)
+	grpc.ClientStream
+}
+
+type gophKeeperAddBinaryClient struct {
+	grpc.ClientStream
+}
+
+func (x *gophKeeperAddBinaryClient) Send(m *Binary) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *gophKeeperAddBinaryClient) CloseAndRecv() (*emptypb.Empty, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(emptypb.Empty)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *gophKeeperClient) UpdateBinary(ctx context.Context, opts ...grpc.CallOption) (GophKeeper_UpdateBinaryClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GophKeeper_ServiceDesc.Streams[4], GophKeeper_UpdateBinary_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &gophKeeperUpdateBinaryClient{stream}
+	return x, nil
+}
+
+type GophKeeper_UpdateBinaryClient interface {
+	Send(*Binary) error
+	CloseAndRecv() (*emptypb.Empty, error)
+	grpc.ClientStream
+}
+
+type gophKeeperUpdateBinaryClient struct {
+	grpc.ClientStream
+}
+
+func (x *gophKeeperUpdateBinaryClient) Send(m *Binary) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *gophKeeperUpdateBinaryClient) CloseAndRecv() (*emptypb.Empty, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(emptypb.Empty)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *gophKeeperClient) GetBinary(ctx context.Context, in *Key, opts ...grpc.CallOption) (GophKeeper_GetBinaryClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GophKeeper_ServiceDesc.Streams[5], GophKeeper_GetBinary_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &gophKeeperGetBinaryClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type GophKeeper_GetBinaryClient interface {
+	Recv() (*Binary, error)
+	grpc.ClientStream
+}
+
+type gophKeeperGetBinaryClient struct {
+	grpc.ClientStream
+}
+
+func (x *gophKeeperGetBinaryClient) Recv() (*Binary, error) {
+	m := new(Binary)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *gophKeeperClient) DeleteBinary(ctx context.Context, in *Key, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, GophKeeper_DeleteBinary_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GophKeeperServer is the server API for GophKeeper service.
 // All implementations must embed UnimplementedGophKeeperServer
 // for forward compatibility
@@ -197,6 +314,10 @@ type GophKeeperServer interface {
 	UpdateText(GophKeeper_UpdateTextServer) error
 	GetText(*Key, GophKeeper_GetTextServer) error
 	DeleteText(context.Context, *Key) (*emptypb.Empty, error)
+	AddBinary(GophKeeper_AddBinaryServer) error
+	UpdateBinary(GophKeeper_UpdateBinaryServer) error
+	GetBinary(*Key, GophKeeper_GetBinaryServer) error
+	DeleteBinary(context.Context, *Key) (*emptypb.Empty, error)
 	mustEmbedUnimplementedGophKeeperServer()
 }
 
@@ -224,6 +345,18 @@ func (UnimplementedGophKeeperServer) GetText(*Key, GophKeeper_GetTextServer) err
 }
 func (UnimplementedGophKeeperServer) DeleteText(context.Context, *Key) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteText not implemented")
+}
+func (UnimplementedGophKeeperServer) AddBinary(GophKeeper_AddBinaryServer) error {
+	return status.Errorf(codes.Unimplemented, "method AddBinary not implemented")
+}
+func (UnimplementedGophKeeperServer) UpdateBinary(GophKeeper_UpdateBinaryServer) error {
+	return status.Errorf(codes.Unimplemented, "method UpdateBinary not implemented")
+}
+func (UnimplementedGophKeeperServer) GetBinary(*Key, GophKeeper_GetBinaryServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetBinary not implemented")
+}
+func (UnimplementedGophKeeperServer) DeleteBinary(context.Context, *Key) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteBinary not implemented")
 }
 func (UnimplementedGophKeeperServer) mustEmbedUnimplementedGophKeeperServer() {}
 
@@ -383,6 +516,97 @@ func _GophKeeper_DeleteText_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GophKeeper_AddBinary_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(GophKeeperServer).AddBinary(&gophKeeperAddBinaryServer{stream})
+}
+
+type GophKeeper_AddBinaryServer interface {
+	SendAndClose(*emptypb.Empty) error
+	Recv() (*Binary, error)
+	grpc.ServerStream
+}
+
+type gophKeeperAddBinaryServer struct {
+	grpc.ServerStream
+}
+
+func (x *gophKeeperAddBinaryServer) SendAndClose(m *emptypb.Empty) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *gophKeeperAddBinaryServer) Recv() (*Binary, error) {
+	m := new(Binary)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func _GophKeeper_UpdateBinary_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(GophKeeperServer).UpdateBinary(&gophKeeperUpdateBinaryServer{stream})
+}
+
+type GophKeeper_UpdateBinaryServer interface {
+	SendAndClose(*emptypb.Empty) error
+	Recv() (*Binary, error)
+	grpc.ServerStream
+}
+
+type gophKeeperUpdateBinaryServer struct {
+	grpc.ServerStream
+}
+
+func (x *gophKeeperUpdateBinaryServer) SendAndClose(m *emptypb.Empty) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *gophKeeperUpdateBinaryServer) Recv() (*Binary, error) {
+	m := new(Binary)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func _GophKeeper_GetBinary_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Key)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(GophKeeperServer).GetBinary(m, &gophKeeperGetBinaryServer{stream})
+}
+
+type GophKeeper_GetBinaryServer interface {
+	Send(*Binary) error
+	grpc.ServerStream
+}
+
+type gophKeeperGetBinaryServer struct {
+	grpc.ServerStream
+}
+
+func (x *gophKeeperGetBinaryServer) Send(m *Binary) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _GophKeeper_DeleteBinary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Key)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GophKeeperServer).DeleteBinary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GophKeeper_DeleteBinary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GophKeeperServer).DeleteBinary(ctx, req.(*Key))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GophKeeper_ServiceDesc is the grpc.ServiceDesc for GophKeeper service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -406,6 +630,10 @@ var GophKeeper_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "DeleteText",
 			Handler:    _GophKeeper_DeleteText_Handler,
 		},
+		{
+			MethodName: "DeleteBinary",
+			Handler:    _GophKeeper_DeleteBinary_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -421,6 +649,21 @@ var GophKeeper_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "GetText",
 			Handler:       _GophKeeper_GetText_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "AddBinary",
+			Handler:       _GophKeeper_AddBinary_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "UpdateBinary",
+			Handler:       _GophKeeper_UpdateBinary_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "GetBinary",
+			Handler:       _GophKeeper_GetBinary_Handler,
 			ServerStreams: true,
 		},
 	},

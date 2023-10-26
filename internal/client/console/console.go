@@ -12,3 +12,9 @@ type Text struct {
 	Meta string
 	Key  string
 }
+
+type Bytes struct {
+	Path string
+	Meta string
+	Key  string
+}
