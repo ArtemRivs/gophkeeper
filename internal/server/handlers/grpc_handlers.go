@@ -909,3 +909,251 @@ func (s *Server) DeleteBinary(ctx context.Context, in *pb.Key) (*emptypb.Empty, 
 		return &emptypb.Empty{}, nil
 	}
 }
+
+func (s *Server) AddCard(ctx context.Context, in *pb.CardDetails) (*emptypb.Empty, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msg("AddCard request")
+	if md, ok := metadata.FromIncomingContext(ctx); !ok {
+		logger.Error().Msg("Can't get metadata from request context")
+		return &emptypb.Empty{}, status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		logger.Debug().Msgf("MetaData %v", md)
+		clientIDValues := md.Get(ClientIDCtx)
+		clientIDValue := clientIDValues[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return &emptypb.Empty{}, errors.New("Unable to parse client login")
+		}
+		clientTokens := md.Get(ClientTokenCtx)
+		clientToken := []byte(clientTokens[0])
+		numberBytes := []byte(in.Number)
+		nameBytes := []byte(in.Name)
+		surnameBytes := []byte(in.Surname)
+		expirationBytes := []byte(in.Expiration)
+		cvvBytes := []byte(in.Cvv)
+		metaBytes := []byte(in.Meta)
+		number, err := Encrypt(numberBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card number")
+			return &emptypb.Empty{}, errors.New("Unable to add card")
+		}
+		name, err := Encrypt(nameBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card name")
+			return &emptypb.Empty{}, errors.New("Unable to add card")
+		}
+		surname, err := Encrypt(surnameBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card surname")
+			return &emptypb.Empty{}, errors.New("Unable to add card")
+		}
+		expiration, err := Encrypt(expirationBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card expiration date")
+			return &emptypb.Empty{}, errors.New("Unable to add card")
+		}
+		cvv, err := Encrypt(cvvBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card cvv")
+			return &emptypb.Empty{}, errors.New("Unable to add card")
+		}
+		meta, err := Encrypt(metaBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card meta data")
+			return &emptypb.Empty{}, errors.New("Unable to add card")
+		}
+		statusCode := s.storage.AddCard(
+			clientId, in.Key, hex.EncodeToString(number), hex.EncodeToString(name),
+			hex.EncodeToString(surname), hex.EncodeToString(expiration),
+			hex.EncodeToString(cvv), hex.EncodeToString(meta),
+		)
+		if statusCode.Code() != codes.OK {
+			logger.Error().Err(statusCode.Err()).Msgf("Error from storage while adding card data: %v", statusCode.Message())
+			return &emptypb.Empty{}, errors.New("Error from storage while adding card data")
+		}
+		logger.Info().Msg("Request complited successfully")
+		return &emptypb.Empty{}, nil
+	}
+}
+
+func (s *Server) UpdateCard(ctx context.Context, in *pb.CardDetails) (*emptypb.Empty, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msg("UpdateCard request")
+	if md, ok := metadata.FromIncomingContext(ctx); !ok {
+		logger.Error().Msg("Can't get metadata from request context")
+		return &emptypb.Empty{}, status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		clientIDValue := md.Get(ClientIDCtx)[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return &emptypb.Empty{}, errors.New("Unable to parse client login")
+		}
+		clientTokens := md.Get(ClientTokenCtx)
+		clientToken := []byte(clientTokens[0])
+		numberBytes := []byte(in.Number)
+		nameBytes := []byte(in.Name)
+		surnameBytes := []byte(in.Surname)
+		expirationBytes := []byte(in.Expiration)
+		cvvBytes := []byte(in.Cvv)
+		metaBytes := []byte(in.Meta)
+		number, err := Encrypt(numberBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card number")
+			return &emptypb.Empty{}, errors.New("Unable to update card")
+		}
+		name, err := Encrypt(nameBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card name")
+			return &emptypb.Empty{}, errors.New("Unable to update card")
+		}
+		surname, err := Encrypt(surnameBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card surname")
+			return &emptypb.Empty{}, errors.New("Unable to update card")
+		}
+		expiration, err := Encrypt(expirationBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card expiration date")
+			return &emptypb.Empty{}, errors.New("Unable to update card")
+		}
+		cvv, err := Encrypt(cvvBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card cvv")
+			return &emptypb.Empty{}, errors.New("Unable to update card")
+		}
+		meta, err := Encrypt(metaBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt card meta data")
+			return &emptypb.Empty{}, errors.New("Unable to update card")
+		}
+		statusCode := s.storage.UpdateCard(
+			clientId, in.Key, hex.EncodeToString(number), hex.EncodeToString(name),
+			hex.EncodeToString(surname), hex.EncodeToString(expiration),
+			hex.EncodeToString(cvv), hex.EncodeToString(meta),
+		)
+		if statusCode.Code() != codes.OK {
+			logger.Error().Err(statusCode.Err()).Msgf("Eror from storage while updating card data: %v", statusCode.Message())
+			return &emptypb.Empty{}, errors.New("Error from storage while updating card data")
+		}
+		logger.Info().Msg("Request complited successfully")
+		return &emptypb.Empty{}, nil
+	}
+}
+
+func (s *Server) GetCard(ctx context.Context, in *pb.Key) (*pb.CardDetails, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msg("GetCard request")
+	if md, ok := metadata.FromIncomingContext(ctx); !ok {
+		logger.Error().Msg("Can't get metadata from request context")
+		return &pb.CardDetails{}, status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		clientIDValue := md.Get(ClientIDCtx)[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return &pb.CardDetails{}, errors.New("Unable to parse client login")
+		}
+		clientTokens := md.Get(ClientTokenCtx)
+		clientToken := []byte(clientTokens[0])
+		card, statusCode := s.storage.GetCard(clientId, in.Key)
+		if statusCode.Code() != codes.OK {
+			logger.Error().Err(statusCode.Err()).Msgf("Error while getting card from storage: %v", statusCode.Message())
+			return &pb.CardDetails{}, errors.New("Can't get card from storage")
+		}
+		numberBytes, err := hex.DecodeString(card.Number)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode card number")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		nameBytes, err := hex.DecodeString(card.Name)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode card name")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		surnameBytes, err := hex.DecodeString(card.Surname)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode card surname")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		expirationBytes, err := hex.DecodeString(card.Expiration)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode card expiration date")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		cvvBytes, err := hex.DecodeString(card.Cvv)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode card cvv")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		metaBytes, err := hex.DecodeString(card.Meta)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decode card meta data")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		number, err := Decrypt(numberBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decrypt card number")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		name, err := Decrypt(nameBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decrypt card name")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		surname, err := Decrypt(surnameBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decrypt card surname")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		expiration, err := Decrypt(expirationBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decrypt card expiration date")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		cvv, err := Decrypt(cvvBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decrypt card cvv")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		meta, err := Decrypt(metaBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to decrypt card meta data")
+			return &pb.CardDetails{}, errors.New("Can't get card")
+		}
+		logger.Info().Msg("Request complited successfully")
+		return &pb.CardDetails{
+			Number:     string(number),
+			Name:       string(name),
+			Surname:    string(surname),
+			Expiration: string(expiration),
+			Cvv:        string(cvv),
+			Key:        in.Key,
+			Meta:       string(meta),
+		}, nil
+	}
+}
+
+func (s *Server) DeleteCard(ctx context.Context, in *pb.Key) (*emptypb.Empty, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msg("DeleteCard request")
+	if md, ok := metadata.FromIncomingContext(ctx); !ok {
+		logger.Error().Msg("Can't get metadata from request context")
+		return &emptypb.Empty{}, status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		clientIDValue := md.Get(ClientIDCtx)[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return &emptypb.Empty{}, errors.New("Unable to parse client login")
+		}
+		statusCode := s.storage.DeleteCard(clientId, in.Key)
+		if statusCode.Code() != codes.OK {
+			logger.Error().Err(statusCode.Err()).Msgf("Error while deleting card from storage %v", statusCode.Message())
+			return &emptypb.Empty{}, errors.New("Unable to delete card from storage")
+		}
+		logger.Info().Msg("Request complited successfully")
+		return &emptypb.Empty{}, statusCode.Err()
+	}
+}

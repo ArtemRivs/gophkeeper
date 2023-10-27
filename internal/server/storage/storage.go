@@ -39,6 +39,10 @@ type IRepository interface {
 	GetBinary(clientId uuid.UUID, key string) (console.Bytes, *status.Status)
 	UpdateBinary(clientId uuid.UUID, key string, filename string, meta string) *status.Status
 	DeleteBinary(clientId uuid.UUID, key string) *status.Status
+	AddCard(clientId uuid.UUID, key string, number string, name string, surname string, expiration string, cvv string, meta string) *status.Status
+	UpdateCard(clientId uuid.UUID, key string, number string, name string, surname string, expiration string, cvv string, meta string) *status.Status
+	GetCard(clientId uuid.UUID, key string) (console.Card, *status.Status)
+	DeleteCard(clientId uuid.UUID, key string) *status.Status
 	Shutdown() error
 }
 
@@ -268,5 +272,80 @@ func (repo *Repository) DeleteBinary(clientId uuid.UUID, key string) *status.Sta
 		return status.New(codes.Internal, "Failed to update binary value into db")
 	}
 	return status.New(codes.OK, "Binary deleted")
+}
 
+func (repo *Repository) AddCard(clientId uuid.UUID, key string, number string, name string, surname string, expiration string, cvv string, meta string) *status.Status {
+	fmt.Println("AddCard")
+	row := repo.db.QueryRow(
+		`INSERT INTO card (user_id, "key", number, "name", surname, expiration, cvv, meta) 
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+		clientId, key, number, name, surname, expiration, cvv, meta,
+	)
+	var cardIdDb string
+	if err := row.Scan(&cardIdDb); err != nil {
+		if errors.As(err, &psqlErr) {
+			if psqlErr.Code == pgerrcode.UniqueViolation {
+				return status.New(codes.AlreadyExists, "Card for this user and key already exists")
+			}
+		}
+		fmt.Printf("Got err %v", err)
+		return status.New(codes.Internal, "Unable to insert card value into db")
+	}
+	return status.New(codes.OK, "Card added")
+}
+
+func (repo *Repository) UpdateCard(clientId uuid.UUID, key string, number string, name string, surname string, expiration string, cvv string, meta string) *status.Status {
+	fmt.Println("UpdateCard")
+	row := repo.db.QueryRow(
+		`UPDATE card SET "number" = $1, "name" = $2, surname = $3, expiration = $4, cvv = $5, meta = $6
+            WHERE user_id = $7 AND "key" = $8 AND deleted is false RETURNING id`,
+		number, name, surname, expiration, cvv, meta, clientId, key,
+	)
+	var cardId string
+	if err := row.Scan(&cardId); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("Got no data for card key = %v", key)
+			return status.New(codes.NotFound, "Card for this user and key doesn't exist")
+		}
+		if errors.As(err, &psqlErr) {
+			if psqlErr.Code == pgerrcode.ForeignKeyViolation {
+				return status.New(codes.NotFound, "Card for this user and key doesn't exist")
+			}
+		}
+		fmt.Printf("Got err %v", err)
+		return status.New(codes.Internal, "Unable to update card value into db")
+	}
+	return status.New(codes.OK, "Card updated")
+}
+
+func (repo *Repository) GetCard(clientId uuid.UUID, key string) (console.Card, *status.Status) {
+	fmt.Println("GetCard")
+	row := repo.db.QueryRow(
+		`SELECT "number", "name", surname, expiration, cvv, meta FROM card 
+            WHERE user_id = $1 AND "key" = $2 and deleted is false`, clientId, key,
+	)
+	var card console.Card
+	if err := row.Scan(&card.Number, &card.Name, &card.Surname, &card.Expiration, &card.Cvv, &card.Meta); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("Got no data for card key = %v", key)
+			return console.Card{}, status.New(codes.NotFound, "Card for this user and key doesn't exist")
+		}
+		fmt.Printf("Got err %v", err)
+		return console.Card{}, status.New(codes.Internal, "Unable to update card value into db")
+	}
+	return card, status.New(codes.OK, "Card updated")
+}
+
+func (repo *Repository) DeleteCard(clientId uuid.UUID, key string) *status.Status {
+	fmt.Println("DeleteCard")
+	row := repo.db.QueryRow("UPDATE card SET deleted = true WHERE user_id = $1 AND \"key\" = $2 RETURNING id", clientId, key)
+	var cardId string
+	if err := row.Scan(&cardId); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("Got no data for card key = %v", key)
+			return status.New(codes.NotFound, "Card for this user and key doesn't exist")
+		}
+		return status.New(codes.Internal, "Unable to delete card value into db")
+	}
+	return status.New(codes.OK, "Card deleted")
 }

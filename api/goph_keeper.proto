@@ -16,7 +16,11 @@ service GophKeeper {
   rpc AddBinary(stream Binary) returns (google.protobuf.Empty);
   rpc UpdateBinary(stream Binary) returns (google.protobuf.Empty);
   rpc GetBinary(Key) returns (stream Binary);
-  rpc DeleteBinary(Key) returns (google.protobuf.Empty);  
+  rpc DeleteBinary(Key) returns (google.protobuf.Empty);
+  rpc AddCard(CardDetails) returns (google.protobuf.Empty);
+  rpc UpdateCard(CardDetails) returns (google.protobuf.Empty);
+  rpc GetCard(Key) returns (CardDetails);
+  rpc DeleteCard(Key) returns (google.protobuf.Empty);  
 }
 
 message UserData {
@@ -49,4 +53,14 @@ message Binary {
   bytes data = 1;
   string meta = 2;
   string key = 3;
+}
+
+message CardDetails {
+  string number = 1;
+  string expiration = 2;
+  string name = 3;
+  string surname = 4;
+  string cvv = 5;
+  string meta = 6;
+  string key = 7;
 }

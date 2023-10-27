@@ -18,3 +18,13 @@ type Bytes struct {
 	Meta string
 	Key  string
 }
+
+type Card struct {
+	Number     string
+	Expiration string
+	Name       string
+	Surname    string
+	Cvv        string
+	Meta       string
+	Key        string
+}

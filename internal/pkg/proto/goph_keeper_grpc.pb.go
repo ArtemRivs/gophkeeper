@@ -31,6 +31,10 @@ const (
 	GophKeeper_UpdateBinary_FullMethodName     = "/goph_keeper.GophKeeper/UpdateBinary"
 	GophKeeper_GetBinary_FullMethodName        = "/goph_keeper.GophKeeper/GetBinary"
 	GophKeeper_DeleteBinary_FullMethodName     = "/goph_keeper.GophKeeper/DeleteBinary"
+	GophKeeper_AddCard_FullMethodName          = "/goph_keeper.GophKeeper/AddCard"
+	GophKeeper_UpdateCard_FullMethodName       = "/goph_keeper.GophKeeper/UpdateCard"
+	GophKeeper_GetCard_FullMethodName          = "/goph_keeper.GophKeeper/GetCard"
+	GophKeeper_DeleteCard_FullMethodName       = "/goph_keeper.GophKeeper/DeleteCard"
 )
 
 // GophKeeperClient is the client API for GophKeeper service.
@@ -48,6 +52,10 @@ type GophKeeperClient interface {
 	UpdateBinary(ctx context.Context, opts ...grpc.CallOption) (GophKeeper_UpdateBinaryClient, error)
 	GetBinary(ctx context.Context, in *Key, opts ...grpc.CallOption) (GophKeeper_GetBinaryClient, error)
 	DeleteBinary(ctx context.Context, in *Key, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	AddCard(ctx context.Context, in *CardDetails, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	UpdateCard(ctx context.Context, in *CardDetails, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetCard(ctx context.Context, in *Key, opts ...grpc.CallOption) (*CardDetails, error)
+	DeleteCard(ctx context.Context, in *Key, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type gophKeeperClient struct {
@@ -303,6 +311,42 @@ func (c *gophKeeperClient) DeleteBinary(ctx context.Context, in *Key, opts ...gr
 	return out, nil
 }
 
+func (c *gophKeeperClient) AddCard(ctx context.Context, in *CardDetails, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, GophKeeper_AddCard_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gophKeeperClient) UpdateCard(ctx context.Context, in *CardDetails, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, GophKeeper_UpdateCard_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gophKeeperClient) GetCard(ctx context.Context, in *Key, opts ...grpc.CallOption) (*CardDetails, error) {
+	out := new(CardDetails)
+	err := c.cc.Invoke(ctx, GophKeeper_GetCard_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gophKeeperClient) DeleteCard(ctx context.Context, in *Key, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, GophKeeper_DeleteCard_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GophKeeperServer is the server API for GophKeeper service.
 // All implementations must embed UnimplementedGophKeeperServer
 // for forward compatibility
@@ -318,6 +362,10 @@ type GophKeeperServer interface {
 	UpdateBinary(GophKeeper_UpdateBinaryServer) error
 	GetBinary(*Key, GophKeeper_GetBinaryServer) error
 	DeleteBinary(context.Context, *Key) (*emptypb.Empty, error)
+	AddCard(context.Context, *CardDetails) (*emptypb.Empty, error)
+	UpdateCard(context.Context, *CardDetails) (*emptypb.Empty, error)
+	GetCard(context.Context, *Key) (*CardDetails, error)
+	DeleteCard(context.Context, *Key) (*emptypb.Empty, error)
 	mustEmbedUnimplementedGophKeeperServer()
 }
 
@@ -357,6 +405,18 @@ func (UnimplementedGophKeeperServer) GetBinary(*Key, GophKeeper_GetBinaryServer)
 }
 func (UnimplementedGophKeeperServer) DeleteBinary(context.Context, *Key) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteBinary not implemented")
+}
+func (UnimplementedGophKeeperServer) AddCard(context.Context, *CardDetails) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddCard not implemented")
+}
+func (UnimplementedGophKeeperServer) UpdateCard(context.Context, *CardDetails) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateCard not implemented")
+}
+func (UnimplementedGophKeeperServer) GetCard(context.Context, *Key) (*CardDetails, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCard not implemented")
+}
+func (UnimplementedGophKeeperServer) DeleteCard(context.Context, *Key) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteCard not implemented")
 }
 func (UnimplementedGophKeeperServer) mustEmbedUnimplementedGophKeeperServer() {}
 
@@ -607,6 +667,78 @@ func _GophKeeper_DeleteBinary_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GophKeeper_AddCard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CardDetails)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GophKeeperServer).AddCard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GophKeeper_AddCard_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GophKeeperServer).AddCard(ctx, req.(*CardDetails))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GophKeeper_UpdateCard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CardDetails)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GophKeeperServer).UpdateCard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GophKeeper_UpdateCard_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GophKeeperServer).UpdateCard(ctx, req.(*CardDetails))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GophKeeper_GetCard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Key)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GophKeeperServer).GetCard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GophKeeper_GetCard_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GophKeeperServer).GetCard(ctx, req.(*Key))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GophKeeper_DeleteCard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Key)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GophKeeperServer).DeleteCard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GophKeeper_DeleteCard_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GophKeeperServer).DeleteCard(ctx, req.(*Key))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GophKeeper_ServiceDesc is the grpc.ServiceDesc for GophKeeper service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -633,6 +765,22 @@ var GophKeeper_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteBinary",
 			Handler:    _GophKeeper_DeleteBinary_Handler,
+		},
+		{
+			MethodName: "AddCard",
+			Handler:    _GophKeeper_AddCard_Handler,
+		},
+		{
+			MethodName: "UpdateCard",
+			Handler:    _GophKeeper_UpdateCard_Handler,
+		},
+		{
+			MethodName: "GetCard",
+			Handler:    _GophKeeper_GetCard_Handler,
+		},
+		{
+			MethodName: "DeleteCard",
+			Handler:    _GophKeeper_DeleteCard_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
