@@ -107,16 +107,55 @@ func (console Console) ParseLoginPass() interface{} {
 	return loginPass
 }
 
+var validDataTypes = []string{"login_pass", "card", "text", "bytes"}
+
+func checkInputDataTypeIsValid(inputDataType string) bool {
+	for _, dataType := range validDataTypes {
+		if dataType == inputDataType {
+			return true
+		}
+	}
+	return false
+}
+
+func (console Console) ParseInputDataType() string {
+	fmt.Println("Select one data type: 'login_pass', 'card', 'text', 'bytes'")
+	for {
+		inputDataType, _ := console.reader.ReadString('\n')
+		inputDataType = string(bytes.TrimRight([]byte(inputDataType), "\n"))
+		if checkInputDataTypeIsValid(inputDataType) {
+			return inputDataType
+		}
+		fmt.Println("You entered the wrong data type. Select one from 'login_pass', 'card', 'text', 'bytes'")
+	}
+}
 func (console Console) ParseCommandCycle() InputData {
-	fmt.Println("Select command")
+	fmt.Println("Select command from 'add', 'get', 'update', 'delete', 'exit'")
 	for {
 		cmd, _ := console.reader.ReadString('\n')
 		cmd = string(bytes.TrimRight([]byte(cmd), "\n"))
 		switch cmd {
 		case "exit":
 			return InputData{Command: "exit"}
+		case "add":
+			dataType := console.ParseInputDataType()
+			data := console.TypeToFunction[dataType].(func(console Console) interface{})(console)
+			return InputData{Data: data, DataType: dataType, Command: "add"}
+		case "get":
+			dataType := console.ParseInputDataType()
+			key := console.ParseStringWithLength("Key", 3)
+			return InputData{Key: key, DataType: dataType, Command: "get"}
+		case "update":
+			dataType := console.ParseInputDataType()
+			data := console.TypeToFunction[dataType].(func(console Console) interface{})(console)
+			return InputData{Data: data, DataType: dataType, Command: "update"}
+		case "delete":
+			dataType := console.ParseInputDataType()
+			key := console.ParseStringWithLength("Key", 3)
+			return InputData{Key: key, DataType: dataType, Command: "delete"}
 		default:
-			fmt.Println("You entered the wrong command")
+			fmt.Println("You entered the wrong command. Select one from 'add', 'get', 'update', 'delete', 'exit'")
 		}
 	}
+
 }
