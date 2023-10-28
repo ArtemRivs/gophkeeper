@@ -49,6 +49,13 @@ type Console struct {
 	TypeToFunction map[string]interface{}
 }
 
+type InputData struct {
+	Command  string
+	DataType string
+	Data     interface{}
+	Key      string
+}
+
 func NewConsole() Console {
 	reader := bufio.NewReader(os.Stdin)
 	return Console{reader: reader, TypeToFunction: map[string]interface{}{
@@ -98,4 +105,18 @@ func (console Console) ParseLoginPass() interface{} {
 	loginPass.Password = console.ParseStringWithLength("Password", 6)
 	loginPass.Meta = console.ParseStringWithLength("Meta", 0)
 	return loginPass
+}
+
+func (console Console) ParseCommandCycle() InputData {
+	fmt.Println("Select command")
+	for {
+		cmd, _ := console.reader.ReadString('\n')
+		cmd = string(bytes.TrimRight([]byte(cmd), "\n"))
+		switch cmd {
+		case "exit":
+			return InputData{Command: "exit"}
+		default:
+			fmt.Println("You entered the wrong command")
+		}
+	}
 }
