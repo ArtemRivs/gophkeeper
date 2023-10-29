@@ -98,6 +98,19 @@ func (console Console) ParseStringWithLength(token string, length int) string {
 	}
 }
 
+func (console Console) ParseFilePath(token string) string {
+	fmt.Printf("Enter %v file path\n", token)
+	for {
+		path, _ := console.reader.ReadString('\n')
+		path = string(bytes.TrimRight([]byte(path), "\n"))
+		if validator.CheckFileExistence(path) {
+			return path
+		}
+		fmt.Printf("Unable to open %v file path, enter another one\n", token)
+	}
+
+}
+
 func (console Console) ParseLoginPass() interface{} {
 	loginPass := LoginPass{}
 	loginPass.Key = console.ParseStringWithLength("Key", 3)
@@ -129,6 +142,7 @@ func (console Console) ParseInputDataType() string {
 		fmt.Println("You entered the wrong data type. Select one from 'login_pass', 'card', 'text', 'bytes'")
 	}
 }
+
 func (console Console) ParseCommandCycle() InputData {
 	fmt.Println("Select command from 'add', 'get', 'update', 'delete', 'exit'")
 	for {
@@ -157,5 +171,11 @@ func (console Console) ParseCommandCycle() InputData {
 			fmt.Println("You entered the wrong command. Select one from 'add', 'get', 'update', 'delete', 'exit'")
 		}
 	}
+
+}
+
+func (console Console) Run() interface{} {
+	fmt.Printf("Successful authentification")
+	return console.ParseCommandCycle()
 
 }
