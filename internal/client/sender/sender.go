@@ -1,15 +1,20 @@
 package sender
 
 import (
+	"bufio"
 	"context"
+	"encoding/hex"
 	"errors"
+	"io"
 	"log"
+	"os"
 
 	"github.com/ArtemRivs/gophkeeper/internal/client/config"
 	"github.com/ArtemRivs/gophkeeper/internal/client/console"
 	pb "github.com/ArtemRivs/gophkeeper/internal/pkg/proto"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
@@ -91,6 +96,97 @@ func (sender *Sender) DeleteLoginPassword(key string) error {
 	return nil
 }
 
+func (sender *Sender) AddText(text console.Text) error {
+	file, err := os.Open(text.Path)
+	defer file.Close()
+	if err != nil {
+		return err
+	}
+	reader := bufio.NewReader(file)
+	chunk := make([]byte, ChunkSize)
+	stream, err := sender.client.AddText(context.Background())
+
+	for {
+		n, err := reader.Read(chunk)
+		if err != nil {
+			_, err = stream.CloseAndRecv()
+			return err
+		}
+		err = stream.Send(&pb.Text{Data: hex.EncodeToString(chunk[:n]), Meta: text.Meta, Key: text.Key})
+		if err != nil {
+			if e, ok := status.FromError(err); ok {
+				return errors.New(e.Message())
+			}
+		}
+	}
+}
+
+func (sender *Sender) GetText(key string) (console.Text, error) {
+	stream, err := sender.client.GetText(context.Background(), &pb.Key{Key: key})
+	if err != nil {
+		if e, ok := status.FromError(err); ok {
+			return console.Text{}, errors.New(e.Message())
+		}
+	}
+	filename := "text_" + key + ".txt"
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0777)
+	if err != nil {
+		return console.Text{}, err
+	}
+	writer := bufio.NewWriter(f)
+	var meta string
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			writer.Flush()
+			return console.Text{Path: filename, Meta: meta}, nil
+		}
+		if err != nil {
+			return console.Text{}, err
+		}
+		dataBytes, _ := hex.DecodeString(in.Data)
+		meta = in.Meta
+		_, err = writer.Write(dataBytes)
+		if err != nil {
+			return console.Text{}, err
+		}
+	}
+}
+
+func (sender *Sender) UpdateText(text console.Text) error {
+	file, err := os.Open(text.Path)
+	defer file.Close()
+	if err != nil {
+		return err
+	}
+	reader := bufio.NewReader(file)
+	chunk := make([]byte, ChunkSize)
+	stream, err := sender.client.UpdateText(context.Background())
+
+	for {
+		n, err := reader.Read(chunk)
+		if err != nil {
+			_, err = stream.CloseAndRecv()
+			return err
+		}
+		err = stream.Send(&pb.Text{Data: hex.EncodeToString(chunk[:n]), Meta: text.Meta, Key: text.Key})
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func (sender *Sender) DeleteText(key string) error {
+	_, err := sender.client.DeleteText(context.Background(), &pb.Key{Key: key})
+	if err != nil {
+		if e, ok := status.FromError(err); ok {
+			return errors.New(e.Message())
+		}
+		return err
+	}
+	return nil
+}
+
 func (sender *Sender) Register(loginPass console.UserLoginPass) error {
 	sender.clientLogin = loginPass.Login
 	if loginPass.Command == "sign_in" {
@@ -115,8 +211,10 @@ func (sender *Sender) Register(loginPass console.UserLoginPass) error {
 
 func NewSender() *Sender {
 	sender := Sender{clientToken: "", clientLogin: ""}
+	creds, err := credentials.NewClientTLSFromFile(config.CertCrtPath, "")
 	conn, err := grpc.Dial(
 		config.ServerAddress,
+		grpc.WithTransportCredentials(creds),
 		grpc.WithUnaryInterceptor(CreateClientUnaryInterceptor(&sender)),
 		grpc.WithStreamInterceptor(CreateClientStreamInterceptor(&sender)),
 	)

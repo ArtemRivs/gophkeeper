@@ -120,6 +120,14 @@ func (console Console) ParseLoginPass() interface{} {
 	return loginPass
 }
 
+func (console Console) ParseText() interface{} {
+	text := Text{}
+	text.Key = console.ParseStringWithLength("Key", 3)
+	text.Path = console.ParseFilePath("text")
+	text.Meta = console.ParseStringWithLength("Meta", 0)
+	return text
+}
+
 var validDataTypes = []string{"login_pass", "card", "text", "bytes"}
 
 func checkInputDataTypeIsValid(inputDataType string) bool {
