@@ -9,41 +9,47 @@ import (
 	"github.com/ArtemRivs/gophkeeper/internal/client/validator"
 )
 
+// UserLoginPass - struct for user login password
 type LoginPass struct {
-	Login    string
-	Password string
-	Meta     string
-	Key      string
+	Login    string // Login - data login.
+	Password string // Password - data password.
+	Meta     string // Meta - data meta.
+	Key      string // Key - data key.
 }
 
+// Text - struct for text data
 type Text struct {
-	Path string
-	Meta string
-	Key  string
+	Path string // Path - data path.
+	Meta string // Meta - data meta.
+	Key  string // Key - data key.
 }
 
+// Bytes - struct for bytes data
 type Bytes struct {
-	Path string
-	Meta string
-	Key  string
+	Path string // Path - bytes path.
+	Meta string // Meta - data meta.
+	Key  string // Key - data key.
 }
 
+// Card - struct for card data
 type Card struct {
-	Number     string
-	Expiration string
-	Name       string
-	Surname    string
-	Cvv        string
-	Meta       string
-	Key        string
+	Number     string // Number - data number.
+	Expiration string // Expiration - data expiration.
+	Name       string // Name - data name.
+	Surname    string // Surname - data surname.
+	Cvv        string // Cvv - data cvv.
+	Meta       string // Meta - data meta.
+	Key        string // Key - data key.
 }
 
+// UserLoginPass - struct for user login password
 type UserLoginPass struct {
-	Login    string
-	Password string
-	Command  string
+	Login    string // Login - client login.
+	Password string // Password - client password.
+	Command  string // Command - client command.
 }
 
+// Console - struct for console process
 type Console struct {
 	reader         *bufio.Reader
 	TypeToFunction map[string]interface{}
@@ -56,6 +62,7 @@ type InputData struct {
 	Key      string
 }
 
+// NewConsole - create new Console object
 func NewConsole() Console {
 	reader := bufio.NewReader(os.Stdin)
 	return Console{reader: reader, TypeToFunction: map[string]interface{}{
@@ -63,6 +70,7 @@ func NewConsole() Console {
 	}}
 }
 
+// Start - start console process
 func (console Console) Start() UserLoginPass {
 	fmt.Println("Gophkeeper started. Enter 'sign_up' to register new user, 'sign_in' to login")
 	inputCmd, _ := console.reader.ReadString('\n')
@@ -86,6 +94,7 @@ func (console Console) Start() UserLoginPass {
 	return loginPass
 }
 
+// ParseStringWithLength - parse string and check its length
 func (console Console) ParseStringWithLength(token string, length int) string {
 	fmt.Printf("Enter %v\n", token)
 	for {
@@ -98,6 +107,7 @@ func (console Console) ParseStringWithLength(token string, length int) string {
 	}
 }
 
+// ParseFilePath - parses path to the file and checks that it exists
 func (console Console) ParseFilePath(token string) string {
 	fmt.Printf("Enter %v file path\n", token)
 	for {
@@ -111,6 +121,7 @@ func (console Console) ParseFilePath(token string) string {
 
 }
 
+// ParseLoginPass - parse login password input data
 func (console Console) ParseLoginPass() interface{} {
 	loginPass := LoginPass{}
 	loginPass.Key = console.ParseStringWithLength("Key", 3)
@@ -120,6 +131,7 @@ func (console Console) ParseLoginPass() interface{} {
 	return loginPass
 }
 
+// ParseText - parse text input data
 func (console Console) ParseText() interface{} {
 	text := Text{}
 	text.Key = console.ParseStringWithLength("Key", 3)
@@ -128,6 +140,7 @@ func (console Console) ParseText() interface{} {
 	return text
 }
 
+// ParseBytes - parse bytes input data
 func (console Console) ParseBytes() interface{} {
 	bytesObj := Bytes{}
 	bytesObj.Key = console.ParseStringWithLength("Key", 3)
@@ -136,6 +149,7 @@ func (console Console) ParseBytes() interface{} {
 	return bytesObj
 }
 
+// ParseCard - parse card input data
 func (console Console) ParseCard() interface{} {
 	card := Card{}
 	card.Key = console.ParseStringWithLength("Key", 3)
@@ -160,6 +174,7 @@ func (console Console) ParseCard() interface{} {
 
 var validDataTypes = []string{"login_pass", "card", "text", "bytes"}
 
+// checkInputDataTypeIsValid - check an input data type
 func checkInputDataTypeIsValid(inputDataType string) bool {
 	for _, dataType := range validDataTypes {
 		if dataType == inputDataType {
@@ -169,6 +184,7 @@ func checkInputDataTypeIsValid(inputDataType string) bool {
 	return false
 }
 
+// ParseInputDataType - parse input data type
 func (console Console) ParseInputDataType() string {
 	fmt.Println("Select one data type: 'login_pass', 'card', 'text', 'bytes'")
 	for {
@@ -181,6 +197,7 @@ func (console Console) ParseInputDataType() string {
 	}
 }
 
+// ParseCommandCycle - parse command in cycle
 func (console Console) ParseCommandCycle() InputData {
 	fmt.Println("Select command from 'add', 'get', 'update', 'delete', 'exit'")
 	for {
@@ -212,6 +229,7 @@ func (console Console) ParseCommandCycle() InputData {
 
 }
 
+// Run - start command cycle
 func (console Console) Run() interface{} {
 	fmt.Printf("Successful authentification")
 	return console.ParseCommandCycle()

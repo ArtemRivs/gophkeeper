@@ -26,20 +26,54 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+// SecretKey - const for getting client password hash
 const SecretKey = "SecretKey"
+
+// ClientIDCtx - const string for passing client id in context
 const ClientIDCtx = "ClientID"
+
+// ClientTokenCtx - const string for passing client token in context
 const ClientTokenCtx = "ClientToken"
 
+// Log - logger instance
 var Log = zerolog.New(os.Stdout).With().Timestamp().Logger()
 
+// Server - struct for server instance,
 type Server struct {
-	pb.UnimplementedGophKeeperServer
-	storage storage.IRepository
+	pb.UnimplementedGophKeeperServer                     // UnimplementedGophKeeperServer.
+	storage                          storage.IRepository // storage - repostory interface for working with server's data.
 }
 
+// serverStreamWrapper - struct for server wrapper
+type serverStreamWrapper struct {
+	ss  grpc.ServerStream // ss - gPRC server stream.
+	ctx context.Context   // ctx - execution context of the server stream.
+}
+
+// Context - get server context
+func (w serverStreamWrapper) Context() context.Context { return w.ctx }
+
+// RecvMsg - receive message
+func (w serverStreamWrapper) RecvMsg(msg interface{}) error { return w.ss.RecvMsg(msg) }
+
+// SendMsg - send message
+func (w serverStreamWrapper) SendMsg(msg interface{}) error { return w.ss.SendMsg(msg) }
+
+// SendHeader - send header instead
+func (w serverStreamWrapper) SendHeader(md metadata.MD) error { return w.ss.SendHeader(md) }
+
+// SetHeader - set header instead
+func (w serverStreamWrapper) SetHeader(md metadata.MD) error { return w.ss.SetHeader(md) }
+
+// SetTrailer - set trailer for metadata
+func (w serverStreamWrapper) SetTrailer(md metadata.MD) { w.ss.SetTrailer(md) }
+
+// NewServer - creates new server instance
 func NewServer(storage storage.IRepository) *Server {
 	return &Server{storage: storage}
 }
+
+// CreateAuthUnaryInterceptor - check client login and token in request context and add clientID in context
 func CreateAuthUnaryInterceptor(storage storage.IRepository) func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		var token string
@@ -92,6 +126,58 @@ func CreateAuthUnaryInterceptor(storage storage.IRepository) func(ctx context.Co
 	}
 }
 
+// CreateAuthStreamInterceptor - check client login and token in request context and add clientID in context
+func CreateAuthStreamInterceptor(storage storage.IRepository) func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		var token string
+		var login string
+		if md, ok := metadata.FromIncomingContext(ss.Context()); ok {
+			tokenValues := md.Get("ClientToken")
+			if len(tokenValues) > 0 {
+				token = tokenValues[0]
+			}
+			clientLogin := md.Get("ClientLogin")
+			if len(clientLogin) > 0 {
+				login = clientLogin[0]
+			}
+		} else {
+			Log.Error().Msg("Got no metadata in request")
+			return status.Error(codes.Unauthenticated, "missing token and login")
+		}
+
+		if len(token) == 0 {
+			Log.Error().Msg("Got no client token in request")
+			return status.Error(codes.Unauthenticated, "missing client token")
+		}
+		if len(login) == 0 {
+			Log.Error().Msg("Got no client login in request")
+			return status.Error(codes.Unauthenticated, "missing client login")
+		}
+		sublogger := Log.With().Str("method", info.FullMethod).Str("user_login", login).Logger()
+		client, statusCode := storage.GetClientByLogin(login)
+		if statusCode.Code() != codes.OK {
+			sublogger.Error().Err(statusCode.Err()).Msgf("Got error while getting client from storage: %v", statusCode.Message())
+			return errors.New("Got error while getting client from storage")
+		}
+		if len(token) != 0 && token != client.PasswordHash {
+			returnStatus := status.Error(codes.Unauthenticated, "invalid client token")
+			sublogger.Error().Err(returnStatus)
+			return returnStatus
+		}
+		sublogger.Debug().Msgf("Client with login %v successfully authorized", login)
+		md, ok := metadata.FromIncomingContext(ss.Context())
+		if !ok {
+			sublogger.Error().Msg("Got error while getting metadata from request context")
+			return errors.New("Got error while getting metadata from request context")
+		}
+		md.Set(ClientIDCtx, client.ID)
+		ctx := metadata.NewIncomingContext(ss.Context(), md)
+		ctx = sublogger.WithContext(ctx)
+		return handler(srv, &serverStreamWrapper{ss, ctx})
+	}
+}
+
+// GetHashForClient - calculate hash
 func GetHashForClient(in *pb.UserData) string {
 	h := hmac.New(sha256.New, []byte(SecretKey))
 	h.Write([]byte(in.Password))
@@ -99,6 +185,7 @@ func GetHashForClient(in *pb.UserData) string {
 	return hex.EncodeToString(passwordHash)
 }
 
+// RemoveFileByName - delete file by its name
 func RemoveFileByName(filename string, logger *zerolog.Logger) {
 	err := os.Remove(filename)
 	if err != nil {
@@ -106,6 +193,7 @@ func RemoveFileByName(filename string, logger *zerolog.Logger) {
 	}
 }
 
+// Encrypt - encrypt data to bytes
 func Encrypt(data []byte, nonce []byte) ([]byte, error) {
 	f, err := os.OpenFile(config.CipherKeyPath, os.O_RDONLY, 0777)
 	if err != nil {
@@ -133,6 +221,7 @@ func Encrypt(data []byte, nonce []byte) ([]byte, error) {
 	return dst, nil
 }
 
+// Decrypt - decrypt data from bytes
 func Decrypt(data []byte, nonce []byte) ([]byte, error) {
 	f, err := os.OpenFile(config.CipherKeyPath, os.O_RDONLY, 0777)
 	if err != nil {
@@ -164,6 +253,7 @@ func Decrypt(data []byte, nonce []byte) ([]byte, error) {
 	return src2, nil
 }
 
+// Register - register new client on server
 func (s *Server) Register(ctx context.Context, in *pb.UserData) (*pb.LoginResult, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("Register request")
@@ -182,6 +272,7 @@ func (s *Server) Register(ctx context.Context, in *pb.UserData) (*pb.LoginResult
 	}
 }
 
+// Login - login existing client on server
 func (s *Server) Login(ctx context.Context, in *pb.UserData) (*pb.LoginResult, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("Login request")
@@ -199,6 +290,56 @@ func (s *Server) Login(ctx context.Context, in *pb.UserData) (*pb.LoginResult, e
 	return &pb.LoginResult{Token: passwordHash}, nil
 }
 
+// AddLoginPassword - add new login-password data
+func (s *Server) AddLoginPassword(ctx context.Context, in *pb.LoginPassword) (*emptypb.Empty, error) {
+	logger := zerolog.Ctx(ctx)
+	logger.Info().Msg("AddLoginPassword request")
+	if md, ok := metadata.FromIncomingContext(ctx); !ok {
+		logger.Error().Msg("Can't get metadata from request context")
+		return &emptypb.Empty{}, status.New(codes.Internal, "Unknown error").Err()
+	} else {
+		fmt.Println(md)
+		clientIDValues := md.Get(ClientIDCtx)
+		clientIDValue := clientIDValues[0]
+		clientId, err := uuid.Parse(clientIDValue)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to parse uuid from clientID")
+			return &emptypb.Empty{}, status.New(codes.Internal, "Unable to parse client login").Err()
+		}
+		clientTokens := md.Get(ClientTokenCtx)
+		clientToken := []byte(clientTokens[0])
+		loginBytes := []byte(in.Login)
+		passwordBytes := []byte(in.Password)
+		metaBytes := []byte(in.Meta)
+		login, err := Encrypt(loginBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt login")
+			return &emptypb.Empty{}, status.New(codes.Internal, "Unable to encrypt login").Err()
+		}
+		password, err := Encrypt(passwordBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt password")
+			return &emptypb.Empty{}, status.New(codes.Internal, "Unable to encrypt password").Err()
+		}
+		meta, err := Encrypt(metaBytes, clientToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Unable to encrypt meta")
+			return &emptypb.Empty{}, status.New(codes.Internal, "Unable to encrypt meta").Err()
+		}
+		fmt.Println(hex.EncodeToString(login), hex.EncodeToString(password), hex.EncodeToString(meta))
+		statusCode := s.storage.AddLoginPassword(
+			clientId, in.Key, hex.EncodeToString(login), hex.EncodeToString(password), hex.EncodeToString(meta),
+		)
+		if statusCode.Code() != codes.OK {
+			logger.Error().Err(statusCode.Err()).Msg("Unable to add login-password into storage")
+		} else {
+			logger.Info().Msg("Request complidet successfully")
+		}
+		return &emptypb.Empty{}, statusCode.Err()
+	}
+}
+
+// GetLoginPassword - get existing login-password data
 func (s *Server) GetLoginPassword(ctx context.Context, in *pb.Key) (*pb.LoginPassword, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("GetLoginPassword request")
@@ -260,6 +401,7 @@ func (s *Server) GetLoginPassword(ctx context.Context, in *pb.Key) (*pb.LoginPas
 	}
 }
 
+// UpdateLoginPassword - update existing login-password data
 func (s *Server) UpdateLoginPassword(ctx context.Context, in *pb.LoginPassword) (*emptypb.Empty, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("UpdateLoginPassword request")
@@ -304,6 +446,7 @@ func (s *Server) UpdateLoginPassword(ctx context.Context, in *pb.LoginPassword) 
 	}
 }
 
+// DeleteLoginPassword - delete existing login-password data
 func (s *Server) DeleteLoginPassword(ctx context.Context, in *pb.Key) (*emptypb.Empty, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("DeleteLoginPassword request")
@@ -327,6 +470,7 @@ func (s *Server) DeleteLoginPassword(ctx context.Context, in *pb.Key) (*emptypb.
 	}
 }
 
+// AddText - add new text data
 func (s *Server) AddText(stream pb.GophKeeper_AddTextServer) error {
 	logger := zerolog.Ctx(stream.Context())
 	logger.Info().Msg("AddText request")
@@ -429,6 +573,7 @@ func (s *Server) AddText(stream pb.GophKeeper_AddTextServer) error {
 	}
 }
 
+// GetText - get existing text data
 func (s *Server) GetText(in *pb.Key, stream pb.GophKeeper_GetTextServer) error {
 	logger := zerolog.Ctx(stream.Context())
 	logger.Info().Msg("GetText request")
@@ -494,6 +639,7 @@ func (s *Server) GetText(in *pb.Key, stream pb.GophKeeper_GetTextServer) error {
 	}
 }
 
+// UpdateText - update existing text data
 func (s *Server) UpdateText(stream pb.GophKeeper_UpdateTextServer) error {
 	logger := zerolog.Ctx(stream.Context())
 	logger.Info().Msg("UpdateText request")
@@ -594,6 +740,7 @@ func (s *Server) UpdateText(stream pb.GophKeeper_UpdateTextServer) error {
 	}
 }
 
+// DeleteText - delete existing text data
 func (s *Server) DeleteText(ctx context.Context, in *pb.Key) (*emptypb.Empty, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("DeleteText request")
@@ -629,6 +776,7 @@ func (s *Server) DeleteText(ctx context.Context, in *pb.Key) (*emptypb.Empty, er
 	}
 }
 
+// AddBinary - add new binary data
 func (s *Server) AddBinary(stream pb.GophKeeper_AddBinaryServer) error {
 	logger := zerolog.Ctx(stream.Context())
 	logger.Info().Msg("AddBinary request")
@@ -722,6 +870,7 @@ func (s *Server) AddBinary(stream pb.GophKeeper_AddBinaryServer) error {
 	}
 }
 
+// GetBinary - get existing binary data
 func (s *Server) GetBinary(in *pb.Key, stream pb.GophKeeper_GetBinaryServer) error {
 	logger := zerolog.Ctx(stream.Context())
 	logger.Info().Msg("GetBinary request")
@@ -787,6 +936,7 @@ func (s *Server) GetBinary(in *pb.Key, stream pb.GophKeeper_GetBinaryServer) err
 	}
 }
 
+// UpdateBinary - update existing binary data
 func (s *Server) UpdateBinary(stream pb.GophKeeper_UpdateBinaryServer) error {
 	logger := zerolog.Ctx(stream.Context())
 	logger.Info().Msg("UpdateBinary request")
@@ -875,6 +1025,7 @@ func (s *Server) UpdateBinary(stream pb.GophKeeper_UpdateBinaryServer) error {
 	}
 }
 
+// DeleteBinary - delete existing binary data
 func (s *Server) DeleteBinary(ctx context.Context, in *pb.Key) (*emptypb.Empty, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("DeleteBinary request")
@@ -910,6 +1061,7 @@ func (s *Server) DeleteBinary(ctx context.Context, in *pb.Key) (*emptypb.Empty, 
 	}
 }
 
+// AddCard - add new card data
 func (s *Server) AddCard(ctx context.Context, in *pb.CardDetails) (*emptypb.Empty, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("AddCard request")
@@ -977,6 +1129,7 @@ func (s *Server) AddCard(ctx context.Context, in *pb.CardDetails) (*emptypb.Empt
 	}
 }
 
+// UpdateCard - update existing card data
 func (s *Server) UpdateCard(ctx context.Context, in *pb.CardDetails) (*emptypb.Empty, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("UpdateCard request")
@@ -1042,6 +1195,7 @@ func (s *Server) UpdateCard(ctx context.Context, in *pb.CardDetails) (*emptypb.E
 	}
 }
 
+// GetCard - get existing card data
 func (s *Server) GetCard(ctx context.Context, in *pb.Key) (*pb.CardDetails, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("GetCard request")
@@ -1135,6 +1289,7 @@ func (s *Server) GetCard(ctx context.Context, in *pb.Key) (*pb.CardDetails, erro
 	}
 }
 
+// DeleteCard - delete existing card data
 func (s *Server) DeleteCard(ctx context.Context, in *pb.Key) (*emptypb.Empty, error) {
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msg("DeleteCard request")

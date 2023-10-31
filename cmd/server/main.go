@@ -45,6 +45,7 @@ func main() {
 	s := grpc.NewServer(
 		grpc.Creds(creds),
 		grpc.UnaryInterceptor(handlers.CreateAuthUnaryInterceptor(newStorage)),
+		grpc.StreamInterceptor(handlers.CreateAuthStreamInterceptor(newStorage)),
 	)
 	pb.RegisterGophKeeperServer(s, handlers.NewServer(newStorage))
 	fmt.Println("Gophkeeper started")

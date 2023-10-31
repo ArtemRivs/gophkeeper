@@ -19,18 +19,22 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ISender - interface for sender
 type ISender interface {
 	AddLoginPassword(loginPass console.LoginPass) error
 }
 
+// Sender - struct for sender object
 type Sender struct {
 	client      pb.GophKeeperClient
 	clientToken string
 	clientLogin string
 }
 
+// ChunkSize - size of text/bytes chunk
 const ChunkSize = 1000
 
+// CreateClientUnaryInterceptor - add clientLogin, clientToken in request context
 func CreateClientUnaryInterceptor(sender *Sender) func(ctx context.Context, method string, req interface{},
 	reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker,
 	opts ...grpc.CallOption) error {
@@ -44,6 +48,7 @@ func CreateClientUnaryInterceptor(sender *Sender) func(ctx context.Context, meth
 	}
 }
 
+// CreateClientStreamInterceptor - add clientLogin, clientToken in request context
 func CreateClientStreamInterceptor(sender *Sender) func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 		md := metadata.New(map[string]string{"ClientLogin": sender.clientLogin, "ClientToken": sender.clientToken})
@@ -52,6 +57,7 @@ func CreateClientStreamInterceptor(sender *Sender) func(ctx context.Context, des
 	}
 }
 
+// AddLoginPassword - send request to add login password
 func (sender *Sender) AddLoginPassword(loginPass console.LoginPass) error {
 	_, err := sender.client.AddLoginPassword(context.Background(), &pb.LoginPassword{
 		Login: loginPass.Login, Password: loginPass.Password, Meta: loginPass.Meta, Key: loginPass.Key,
@@ -64,6 +70,7 @@ func (sender *Sender) AddLoginPassword(loginPass console.LoginPass) error {
 	return nil
 }
 
+// UpdateLoginPassword - send request to update login password
 func (sender *Sender) UpdateLoginPassword(loginPass console.LoginPass) error {
 	_, err := sender.client.UpdateLoginPassword(context.Background(), &pb.LoginPassword{
 		Login: loginPass.Login, Password: loginPass.Password, Meta: loginPass.Meta, Key: loginPass.Key,
@@ -76,6 +83,7 @@ func (sender *Sender) UpdateLoginPassword(loginPass console.LoginPass) error {
 	return nil
 }
 
+// GetLoginPassword - send request to get login password
 func (sender *Sender) GetLoginPassword(key string) (console.LoginPass, error) {
 	data, err := sender.client.GetLoginPassword(context.Background(), &pb.Key{Key: key})
 	if err != nil {
@@ -86,6 +94,7 @@ func (sender *Sender) GetLoginPassword(key string) (console.LoginPass, error) {
 	return console.LoginPass{Login: data.Login, Password: data.Password, Meta: data.Meta, Key: data.Key}, nil
 }
 
+// DeleteLoginPassword - send request to delete login password
 func (sender *Sender) DeleteLoginPassword(key string) error {
 	_, err := sender.client.DeleteLoginPassword(context.Background(), &pb.Key{Key: key})
 	if err != nil {
@@ -96,6 +105,7 @@ func (sender *Sender) DeleteLoginPassword(key string) error {
 	return nil
 }
 
+// AddText - send request to add text data
 func (sender *Sender) AddText(text console.Text) error {
 	file, err := os.Open(text.Path)
 	defer file.Close()
@@ -121,6 +131,7 @@ func (sender *Sender) AddText(text console.Text) error {
 	}
 }
 
+// GetText - send request to get text data
 func (sender *Sender) GetText(key string) (console.Text, error) {
 	stream, err := sender.client.GetText(context.Background(), &pb.Key{Key: key})
 	if err != nil {
@@ -153,6 +164,7 @@ func (sender *Sender) GetText(key string) (console.Text, error) {
 	}
 }
 
+// UpdateText - send request to update text data
 func (sender *Sender) UpdateText(text console.Text) error {
 	file, err := os.Open(text.Path)
 	defer file.Close()
@@ -176,6 +188,7 @@ func (sender *Sender) UpdateText(text console.Text) error {
 	}
 }
 
+// DeleteText - send request to delete text data
 func (sender *Sender) DeleteText(key string) error {
 	_, err := sender.client.DeleteText(context.Background(), &pb.Key{Key: key})
 	if err != nil {
@@ -187,6 +200,7 @@ func (sender *Sender) DeleteText(key string) error {
 	return nil
 }
 
+// AddBinary - send request to add binary data
 func (sender *Sender) AddBinary(text console.Bytes) error {
 	file, err := os.Open(text.Path)
 	defer file.Close()
@@ -210,6 +224,7 @@ func (sender *Sender) AddBinary(text console.Bytes) error {
 	}
 }
 
+// GetBinary - send request to get binary data
 func (sender *Sender) GetBinary(key string) (console.Bytes, error) {
 	stream, err := sender.client.GetBinary(context.Background(), &pb.Key{Key: key})
 	filename := "binary_" + key + ".bin"
@@ -241,6 +256,7 @@ func (sender *Sender) GetBinary(key string) (console.Bytes, error) {
 	}
 }
 
+// UpdateBinary - send request to update binary data
 func (sender *Sender) UpdateBinary(text console.Bytes) error {
 	file, err := os.Open(text.Path)
 	defer file.Close()
@@ -264,6 +280,7 @@ func (sender *Sender) UpdateBinary(text console.Bytes) error {
 	}
 }
 
+// DeleteBinary - send request to delete binary data
 func (sender *Sender) DeleteBinary(key string) error {
 	_, err := sender.client.DeleteBinary(context.Background(), &pb.Key{Key: key})
 	if err != nil {
@@ -275,6 +292,7 @@ func (sender *Sender) DeleteBinary(key string) error {
 	return nil
 }
 
+// AddCard - send request to add card data
 func (sender *Sender) AddCard(card console.Card) error {
 	_, err := sender.client.AddCard(context.Background(), &pb.CardDetails{
 		Number: card.Number, Name: card.Name, Surname: card.Surname, Expiration: card.Expiration, Cvv: card.Cvv,
@@ -288,6 +306,7 @@ func (sender *Sender) AddCard(card console.Card) error {
 	return nil
 }
 
+// UpdateCard - send request to update card data
 func (sender *Sender) UpdateCard(card console.Card) error {
 	_, err := sender.client.UpdateCard(context.Background(), &pb.CardDetails{
 		Number: card.Number, Name: card.Name, Surname: card.Surname, Expiration: card.Expiration, Cvv: card.Cvv,
@@ -301,6 +320,7 @@ func (sender *Sender) UpdateCard(card console.Card) error {
 	return nil
 }
 
+// GetCard - send request to get card data
 func (sender *Sender) GetCard(key string) (console.Card, error) {
 	data, err := sender.client.GetCard(context.Background(), &pb.Key{Key: key})
 	if err != nil {
@@ -314,6 +334,7 @@ func (sender *Sender) GetCard(key string) (console.Card, error) {
 	}, nil
 }
 
+// DeleteCard - send request to delete card data
 func (sender *Sender) DeleteCard(key string) error {
 	_, err := sender.client.DeleteCard(context.Background(), &pb.Key{Key: key})
 	if err != nil {
@@ -324,6 +345,7 @@ func (sender *Sender) DeleteCard(key string) error {
 	return nil
 }
 
+// Register - send request to register client
 func (sender *Sender) Register(loginPass console.UserLoginPass) error {
 	sender.clientLogin = loginPass.Login
 	if loginPass.Command == "sign_in" {
@@ -346,6 +368,7 @@ func (sender *Sender) Register(loginPass console.UserLoginPass) error {
 	return nil
 }
 
+// NewSender - create new sender object
 func NewSender() *Sender {
 	sender := Sender{clientToken: "", clientLogin: ""}
 	creds, err := credentials.NewClientTLSFromFile(config.CertCrtPath, "")
