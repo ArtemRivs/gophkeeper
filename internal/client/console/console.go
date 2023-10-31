@@ -128,6 +128,36 @@ func (console Console) ParseText() interface{} {
 	return text
 }
 
+func (console Console) ParseBytes() interface{} {
+	bytesObj := Bytes{}
+	bytesObj.Key = console.ParseStringWithLength("Key", 3)
+	bytesObj.Path = console.ParseFilePath("bytes")
+	bytesObj.Meta = console.ParseStringWithLength("Meta", 0)
+	return bytesObj
+}
+
+func (console Console) ParseCard() interface{} {
+	card := Card{}
+	card.Key = console.ParseStringWithLength("Key", 3)
+	fmt.Println("Enter card number")
+	card.Number, _ = console.reader.ReadString('\n')
+	card.Number = string(bytes.TrimRight([]byte(card.Number), "\n"))
+	fmt.Println("Enter owner name")
+	card.Name, _ = console.reader.ReadString('\n')
+	card.Name = string(bytes.TrimRight([]byte(card.Name), "\n"))
+	fmt.Println("Enter owner surname")
+	card.Surname, _ = console.reader.ReadString('\n')
+	card.Surname = string(bytes.TrimRight([]byte(card.Surname), "\n"))
+	fmt.Println("Enter card expiration date")
+	card.Expiration, _ = console.reader.ReadString('\n')
+	card.Expiration = string(bytes.TrimRight([]byte(card.Expiration), "\n"))
+	fmt.Println("Enter card cvv")
+	cvvStr, _ := console.reader.ReadString('\n')
+	card.Cvv = string(bytes.TrimRight([]byte(cvvStr), "\n"))
+	card.Meta = console.ParseStringWithLength("Meta", 0)
+	return card
+}
+
 var validDataTypes = []string{"login_pass", "card", "text", "bytes"}
 
 func checkInputDataTypeIsValid(inputDataType string) bool {
