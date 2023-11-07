@@ -42,14 +42,16 @@ func CreateClientUnaryInterceptor(sender *Sender) func(ctx context.Context, meth
 		reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption) error {
 		md := metadata.New(map[string]string{"ClientLogin": sender.clientLogin, "ClientToken": sender.clientToken})
-		ctx = metadata.NewOutgoingContext(context.Background(), md)
-		err := invoker(ctx, method, req, reply, cc, opts...)
+		newCtx := metadata.NewOutgoingContext(context.Background(), md)
+		err := invoker(newCtx, method, req, reply, cc, opts...)
 		return err
 	}
 }
 
 // CreateClientStreamInterceptor - add clientLogin, clientToken in request context
-func CreateClientStreamInterceptor(sender *Sender) func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+func CreateClientStreamInterceptor(sender *Sender) func(ctx context.Context, desc *grpc.StreamDesc,
+	cc *grpc.ClientConn, method string, streamer grpc.Streamer,
+	opts ...grpc.CallOption) (grpc.ClientStream, error) {
 	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 		md := metadata.New(map[string]string{"ClientLogin": sender.clientLogin, "ClientToken": sender.clientToken})
 		newCtx := metadata.NewOutgoingContext(ctx, md)
