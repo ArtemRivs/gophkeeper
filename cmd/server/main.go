@@ -29,7 +29,9 @@ func main() {
 		logFile = os.Stdout
 	}
 	handlers.Log = zerolog.New(logFile).With().Timestamp().Logger()
-	db.RunMigrations(config.DatabaseDSN)
+	if err := db.RunMigrations(config.DatabaseDSN); err != nil {
+		log.Fatal(err)
+	}
 	newStorage := storage.New(config.DatabaseDSN)
 	creds, err := credentials.NewServerTLSFromFile(config.CertCrtPath, config.CertKeyPath)
 	if err != nil {

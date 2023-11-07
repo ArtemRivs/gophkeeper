@@ -4,10 +4,11 @@ import "os"
 
 // CheckStringToken - check string token
 func CheckStringToken(token string, length int) bool {
-	if len(token) < length {
-		return false
-	}
-	return true
+	// if len(token) < length {
+	// 	return false
+	// }
+	// return true
+	return len(token) >= length
 }
 
 // CheckFileExistence - check that given file exists
