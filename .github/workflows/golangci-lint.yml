@@ -54,6 +54,5 @@ jobs:
           # Optional: The mode to install golangci-lint. It can be 'binary' or 'goinstall'.
           # install-mode: "goinstall"
 # Add to catch "ineffectual assignment to err (ineffassign)" error.
-linters:
-  ineffassign:
-    show-source: true
+output:
+  format: json
