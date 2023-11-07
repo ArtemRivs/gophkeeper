@@ -5,40 +5,63 @@ import "google/protobuf/empty.proto";
 
 option go_package = "pkg/proto";
 
+// GophKeeper - secret data storage service
 service GophKeeper {
+  // Register() - register new user.
   rpc Register(UserData) returns (LoginResult);
+  // Login() - sign in user.
   rpc Login(UserData) returns (LoginResult);
+  // AddLoginPassword() - add new login password data.
   rpc AddLoginPassword(LoginPassword) returns (google.protobuf.Empty);
+  // UpdateLoginPassword() - update existing login password data.
   rpc UpdateLoginPassword(LoginPassword) returns (google.protobuf.Empty);
+  // GetLoginPassword() - get existing login password data.
   rpc GetLoginPassword(Key) returns (LoginPassword);
+  // DeleteLoginPassword() - delete existing login password data.
   rpc DeleteLoginPassword(Key) returns (google.protobuf.Empty);
+  // AddText() - add text data.
   rpc AddText(stream Text) returns (google.protobuf.Empty);
+  // UpdateText() - update text data.
   rpc UpdateText(stream Text) returns (google.protobuf.Empty);
+  // GetText() - get text data.
   rpc GetText(Key) returns (stream Text);
+  // DeleteText() - delete text data.
   rpc DeleteText(Key) returns (google.protobuf.Empty);
+  // AddBinary() - add binary data.
   rpc AddBinary(stream Binary) returns (google.protobuf.Empty);
+  // UpdateBinary() - update binary data.
   rpc UpdateBinary(stream Binary) returns (google.protobuf.Empty);
+  // GetBinary() - get binary data.
   rpc GetBinary(Key) returns (stream Binary);
+  // DeleteBinary() - delete binary data.
   rpc DeleteBinary(Key) returns (google.protobuf.Empty);
+  // AddCard() - add card data.
   rpc AddCard(CardDetails) returns (google.protobuf.Empty);
+  // UpdateCard() - update card data.
   rpc UpdateCard(CardDetails) returns (google.protobuf.Empty);
+  // GetCard() - get card data.
   rpc GetCard(Key) returns (CardDetails);
+  // DeleteCard() - delete card data.
   rpc DeleteCard(Key) returns (google.protobuf.Empty);  
 }
 
+// UserData - user data structure.
 message UserData {
   string login = 1;
   string password = 2;
 }
 
+// LoginResult - login result data structure.
 message LoginResult {
   string token = 1;
 }
 
+// Key - key data structure.
 message Key {
   string key = 1;
 }
 
+// LoginPassword - user login password data structure.
 message LoginPassword {
   string login = 1;
   string password = 2;
@@ -46,18 +69,21 @@ message LoginPassword {
   string key = 4;
 }
 
+// Text - text data structure.
 message Text {
   string data = 1;
   string meta = 2;
   string key = 3;
 }
 
+// Binary - binary data structure.
 message Binary {
   bytes data = 1;
   string meta = 2;
   string key = 3;
 }
 
+// CardDetails - card details data structure.
 message CardDetails {
   string number = 1;
   string expiration = 2;

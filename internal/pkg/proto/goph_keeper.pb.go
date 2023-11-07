@@ -21,6 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// UserData - user data structure.
 type UserData struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -76,6 +77,7 @@ func (x *UserData) GetPassword() string {
 	return ""
 }
 
+// LoginResult - login result data structure.
 type LoginResult struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -123,6 +125,7 @@ func (x *LoginResult) GetToken() string {
 	return ""
 }
 
+// Key - key data structure.
 type Key struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -170,6 +173,7 @@ func (x *Key) GetKey() string {
 	return ""
 }
 
+// LoginPassword - user login password data structure.
 type LoginPassword struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -241,6 +245,7 @@ func (x *LoginPassword) GetKey() string {
 	return ""
 }
 
+// Text - text data structure.
 type Text struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -304,6 +309,7 @@ func (x *Text) GetKey() string {
 	return ""
 }
 
+// Binary - binary data structure.
 type Binary struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -367,6 +373,7 @@ func (x *Binary) GetKey() string {
 	return ""
 }
 
+// CardDetails - card details data structure.
 type CardDetails struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

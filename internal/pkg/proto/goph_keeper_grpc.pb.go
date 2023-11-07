@@ -44,23 +44,41 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GophKeeperClient interface {
+	// Register() - register new user.
 	Register(ctx context.Context, in *UserData, opts ...grpc.CallOption) (*LoginResult, error)
+	// Login() - sign in user.
 	Login(ctx context.Context, in *UserData, opts ...grpc.CallOption) (*LoginResult, error)
+	// AddLoginPassword() - add new login password data.
 	AddLoginPassword(ctx context.Context, in *LoginPassword, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// UpdateLoginPassword() - update existing login password data.
 	UpdateLoginPassword(ctx context.Context, in *LoginPassword, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// GetLoginPassword() - get existing login password data.
 	GetLoginPassword(ctx context.Context, in *Key, opts ...grpc.CallOption) (*LoginPassword, error)
+	// DeleteLoginPassword() - delete existing login password data.
 	DeleteLoginPassword(ctx context.Context, in *Key, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// AddText() - add text data.
 	AddText(ctx context.Context, opts ...grpc.CallOption) (GophKeeper_AddTextClient, error)
+	// UpdateText() - update text data.
 	UpdateText(ctx context.Context, opts ...grpc.CallOption) (GophKeeper_UpdateTextClient, error)
+	// GetText() - get text data.
 	GetText(ctx context.Context, in *Key, opts ...grpc.CallOption) (GophKeeper_GetTextClient, error)
+	// DeleteText() - delete text data.
 	DeleteText(ctx context.Context, in *Key, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// AddBinary() - add binary data.
 	AddBinary(ctx context.Context, opts ...grpc.CallOption) (GophKeeper_AddBinaryClient, error)
+	// UpdateBinary() - update binary data.
 	UpdateBinary(ctx context.Context, opts ...grpc.CallOption) (GophKeeper_UpdateBinaryClient, error)
+	// GetBinary() - get binary data.
 	GetBinary(ctx context.Context, in *Key, opts ...grpc.CallOption) (GophKeeper_GetBinaryClient, error)
+	// DeleteBinary() - delete binary data.
 	DeleteBinary(ctx context.Context, in *Key, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// AddCard() - add card data.
 	AddCard(ctx context.Context, in *CardDetails, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// UpdateCard() - update card data.
 	UpdateCard(ctx context.Context, in *CardDetails, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// GetCard() - get card data.
 	GetCard(ctx context.Context, in *Key, opts ...grpc.CallOption) (*CardDetails, error)
+	// DeleteCard() - delete card data.
 	DeleteCard(ctx context.Context, in *Key, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
@@ -384,23 +402,41 @@ func (c *gophKeeperClient) DeleteCard(ctx context.Context, in *Key, opts ...grpc
 // All implementations must embed UnimplementedGophKeeperServer
 // for forward compatibility
 type GophKeeperServer interface {
+	// Register() - register new user.
 	Register(context.Context, *UserData) (*LoginResult, error)
+	// Login() - sign in user.
 	Login(context.Context, *UserData) (*LoginResult, error)
+	// AddLoginPassword() - add new login password data.
 	AddLoginPassword(context.Context, *LoginPassword) (*emptypb.Empty, error)
+	// UpdateLoginPassword() - update existing login password data.
 	UpdateLoginPassword(context.Context, *LoginPassword) (*emptypb.Empty, error)
+	// GetLoginPassword() - get existing login password data.
 	GetLoginPassword(context.Context, *Key) (*LoginPassword, error)
+	// DeleteLoginPassword() - delete existing login password data.
 	DeleteLoginPassword(context.Context, *Key) (*emptypb.Empty, error)
+	// AddText() - add text data.
 	AddText(GophKeeper_AddTextServer) error
+	// UpdateText() - update text data.
 	UpdateText(GophKeeper_UpdateTextServer) error
+	// GetText() - get text data.
 	GetText(*Key, GophKeeper_GetTextServer) error
+	// DeleteText() - delete text data.
 	DeleteText(context.Context, *Key) (*emptypb.Empty, error)
+	// AddBinary() - add binary data.
 	AddBinary(GophKeeper_AddBinaryServer) error
+	// UpdateBinary() - update binary data.
 	UpdateBinary(GophKeeper_UpdateBinaryServer) error
+	// GetBinary() - get binary data.
 	GetBinary(*Key, GophKeeper_GetBinaryServer) error
+	// DeleteBinary() - delete binary data.
 	DeleteBinary(context.Context, *Key) (*emptypb.Empty, error)
+	// AddCard() - add card data.
 	AddCard(context.Context, *CardDetails) (*emptypb.Empty, error)
+	// UpdateCard() - update card data.
 	UpdateCard(context.Context, *CardDetails) (*emptypb.Empty, error)
+	// GetCard() - get card data.
 	GetCard(context.Context, *Key) (*CardDetails, error)
+	// DeleteCard() - delete card data.
 	DeleteCard(context.Context, *Key) (*emptypb.Empty, error)
 	mustEmbedUnimplementedGophKeeperServer()
 }
