@@ -108,13 +108,16 @@ func (sender *Sender) DeleteLoginPassword(key string) error {
 // AddText - send request to add text data
 func (sender *Sender) AddText(text console.Text) error {
 	file, err := os.Open(text.Path)
-	defer file.Close()
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	reader := bufio.NewReader(file)
 	chunk := make([]byte, ChunkSize)
 	stream, err := sender.client.AddText(context.Background())
+	if err != nil {
+		return err
+	}
 
 	for {
 		n, err := reader.Read(chunk)
@@ -167,13 +170,16 @@ func (sender *Sender) GetText(key string) (console.Text, error) {
 // UpdateText - send request to update text data
 func (sender *Sender) UpdateText(text console.Text) error {
 	file, err := os.Open(text.Path)
-	defer file.Close()
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	reader := bufio.NewReader(file)
 	chunk := make([]byte, ChunkSize)
 	stream, err := sender.client.UpdateText(context.Background())
+	if err != nil {
+		return err
+	}
 
 	for {
 		n, err := reader.Read(chunk)
@@ -203,13 +209,16 @@ func (sender *Sender) DeleteText(key string) error {
 // AddBinary - send request to add binary data
 func (sender *Sender) AddBinary(text console.Bytes) error {
 	file, err := os.Open(text.Path)
-	defer file.Close()
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	reader := bufio.NewReader(file)
 	chunk := make([]byte, ChunkSize)
 	stream, err := sender.client.AddBinary(context.Background())
+	if err != nil {
+		return err
+	}
 
 	for {
 		n, err := reader.Read(chunk)
@@ -259,13 +268,16 @@ func (sender *Sender) GetBinary(key string) (console.Bytes, error) {
 // UpdateBinary - send request to update binary data
 func (sender *Sender) UpdateBinary(text console.Bytes) error {
 	file, err := os.Open(text.Path)
-	defer file.Close()
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	reader := bufio.NewReader(file)
 	chunk := make([]byte, ChunkSize)
 	stream, err := sender.client.UpdateBinary(context.Background())
+	if err != nil {
+		return err
+	}
 
 	for {
 		n, err := reader.Read(chunk)
@@ -372,6 +384,9 @@ func (sender *Sender) Register(loginPass console.UserLoginPass) error {
 func NewSender() *Sender {
 	sender := Sender{clientToken: "", clientLogin: ""}
 	creds, err := credentials.NewClientTLSFromFile(config.CertCrtPath, "")
+	if err != nil {
+		log.Fatal(err)
+	}
 	conn, err := grpc.Dial(
 		config.ServerAddress,
 		grpc.WithTransportCredentials(creds),
