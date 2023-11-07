@@ -220,6 +220,9 @@ func TestServer_AddLoginPassword(t *testing.T) {
 			storageMock := mocks.NewMockIRepository(ctrl)
 			storageMock.EXPECT().GetClientByLogin(tt.clientLogin).Return(storage.Client{ID: tt.clientID, Login: tt.clientLogin, PasswordHash: tt.passwordHash}, tt.storageErr)
 			clientId, err := uuid.Parse(tt.clientID)
+			if err != nil {
+				t.Errorf("GetClientByLogin() error = %v", err)
+			}
 			storageMock.EXPECT().AddLoginPassword(clientId, tt.key, tt.login, tt.password, tt.meta).Return(tt.storageErr)
 			md := metadata.New(map[string]string{})
 			md.Set(ClientIDCtx, tt.clientID)

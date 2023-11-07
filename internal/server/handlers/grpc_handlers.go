@@ -606,9 +606,12 @@ func (s *Server) GetText(in *pb.Key, stream pb.GophKeeper_GetTextServer) error {
 		chunk := make([]byte, 2032)
 		for {
 			n, err := reader.Read(chunk)
-			if err == io.EOF {
-				logger.Info().Msg("Request completed successfully")
-				return nil
+			if err != nil {
+				if err == io.EOF {
+					logger.Info().Msg("Request completed successfully")
+					return nil
+				}
+				return err
 			}
 			slicedChunk := chunk[:n]
 			chunkDecoded, err := Decrypt(slicedChunk, clientToken)
@@ -903,9 +906,12 @@ func (s *Server) GetBinary(in *pb.Key, stream pb.GophKeeper_GetBinaryServer) err
 		chunk := make([]byte, 2032)
 		for {
 			n, err := reader.Read(chunk)
-			if err == io.EOF {
-				logger.Info().Msg("Request complited successfully")
-				return nil
+			if err != nil {
+				if err == io.EOF {
+					logger.Info().Msg("Request complited successfully")
+					return nil
+				}
+				return err
 			}
 			slicedChunk := chunk[:n]
 			chunkDecoded, err := Decrypt(slicedChunk, clientToken)

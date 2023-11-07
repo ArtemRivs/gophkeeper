@@ -76,6 +76,7 @@ func (repo *Repository) GetClientByLogin(login string) (Client, *status.Status) 
 			fmt.Printf("No data for client login = %v", login)
 			return Client{}, status.New(codes.NotFound, "This client login was not found in the database.")
 		}
+		log.Printf("Error while get client by login: %s", err)
 		return Client{}, status.New(codes.Internal, "Failed to get client value in db")
 	}
 	return client, status.New(codes.OK, "Client found")
@@ -91,6 +92,7 @@ func (repo *Repository) AddClient(login string, passwordHash string) *status.Sta
 				return status.New(codes.AlreadyExists, "A client with this login already exists")
 			}
 		}
+		log.Printf("Error: %v", err)
 		return status.New(codes.Internal, "Failed to insert new client value into db")
 	}
 	return status.New(codes.OK, "Client added")
@@ -107,6 +109,7 @@ func (repo *Repository) AddLoginPassword(clientId uuid.UUID, key string, login s
 				return status.New(codes.AlreadyExists, "The login-password pair for this user and key already exists")
 			}
 		}
+		log.Printf("Error: %v", err)
 		return status.New(codes.Internal, "Failed to insert login_password value into db")
 	}
 	return status.New(codes.OK, "Value added")
@@ -122,6 +125,7 @@ func (repo *Repository) GetLoginPassword(clientId uuid.UUID, key string) (consol
 			fmt.Printf("Got no data for login_pass key = %v", key)
 			return console.LoginPass{}, status.New(codes.NotFound, "Login_pass doesn't exist for this user and key")
 		}
+		log.Printf("Error: %v", err)
 		return console.LoginPass{}, status.New(codes.Internal, "Failed to update login_password value in db")
 	}
 	return loginPassword, status.New(codes.OK, "Value updated")
@@ -137,6 +141,7 @@ func (repo *Repository) UpdateLoginPassword(clientId uuid.UUID, key string, logi
 			fmt.Printf("No data for login_pass key = %v", key)
 			return status.New(codes.NotFound, "Login_pass doesn't exist for this user and key")
 		}
+		log.Printf("Error: %v", err)
 		return status.New(codes.Internal, "Failed to update login_password value in db")
 	}
 	return status.New(codes.OK, "Value updated")
@@ -152,6 +157,7 @@ func (repo *Repository) DeleteLoginPassword(clientId uuid.UUID, key string) *sta
 			fmt.Printf("No data for login_pass key = %v", key)
 			return status.New(codes.NotFound, "Login_pass doesn't exist for this user and key")
 		}
+		log.Printf("Error: %v", err)
 		return status.New(codes.Internal, "Failed to delete login_password value into db")
 	}
 	return status.New(codes.OK, "Value deleted")
@@ -168,6 +174,7 @@ func (repo *Repository) AddText(clientId uuid.UUID, key string, path string, met
 				return status.New(codes.AlreadyExists, "Text for this user and key already exists")
 			}
 		}
+		log.Printf("Error: %v", err)
 		return status.New(codes.Internal, "Unable to insert text value into db")
 	}
 	return status.New(codes.OK, "Value added")
@@ -183,6 +190,7 @@ func (repo *Repository) GetText(clientId uuid.UUID, key string) (console.Text, *
 			fmt.Printf("No data for text key = %v", key)
 			return console.Text{}, status.New(codes.NotFound, "Text for this user and key doesn't exist")
 		}
+		log.Printf("Error: %v", err)
 		return text, status.New(codes.Internal, "Unable to insert text value into db")
 	}
 	return text, status.New(codes.OK, "Text found")
@@ -203,6 +211,7 @@ func (repo *Repository) UpdateText(clientId uuid.UUID, key string, filename stri
 				return status.New(codes.NotFound, "Text for this user and key doesn't exist")
 			}
 		}
+		log.Printf("Error: %v", err)
 		return status.New(codes.Internal, "Unable to update text value into db")
 	}
 	return status.New(codes.OK, "Text updated")
@@ -218,7 +227,7 @@ func (repo *Repository) DeleteText(clientId uuid.UUID, key string) *status.Statu
 			fmt.Printf("Got no data for text key = %v", key)
 			return status.New(codes.NotFound, "Text for this user and key doesn't exist")
 		}
-		fmt.Printf("\nGot error in DeleteText %v\n", err)
+		log.Printf("\nGot error in DeleteText %v\n", err)
 		return status.New(codes.Internal, "Unable to update text value into db")
 	}
 	return status.New(codes.OK, "Text deleted")
@@ -236,6 +245,7 @@ func (repo *Repository) AddBinary(clientId uuid.UUID, key string, path string, m
 				return status.New(codes.AlreadyExists, "Binary for this user and key already exists")
 			}
 		}
+		log.Printf("Error: %v", err)
 		return status.New(codes.Internal, "Failed to insert binary value into db")
 	}
 	return status.New(codes.OK, "Value added")
@@ -251,6 +261,7 @@ func (repo *Repository) GetBinary(clientId uuid.UUID, key string) (console.Bytes
 			fmt.Printf("Got no data for binary key = %v", key)
 			return console.Bytes{}, status.New(codes.NotFound, "Binary for this user and key doesn't exist")
 		}
+		log.Printf("Error: %v", err)
 		return binary, status.New(codes.Internal, "Failed to insert binary value into db")
 	}
 	return binary, status.New(codes.OK, "Binary found")
@@ -271,6 +282,7 @@ func (repo *Repository) UpdateBinary(clientId uuid.UUID, key string, filename st
 				return status.New(codes.NotFound, "Binary value for this user and key doesn't exist")
 			}
 		}
+		log.Printf("Error: %v", err)
 		return status.New(codes.Internal, "Failed to update binary value into db")
 	}
 	return status.New(codes.OK, "Binary updated")
@@ -286,7 +298,7 @@ func (repo *Repository) DeleteBinary(clientId uuid.UUID, key string) *status.Sta
 			fmt.Printf("No data for binary key = %v", key)
 			return status.New(codes.NotFound, "Binary for this user and key doesn't exist")
 		}
-		fmt.Printf("\nError in DeleteBinary %v\n", err)
+		log.Printf("\nError in DeleteBinary %v\n", err)
 		return status.New(codes.Internal, "Failed to update binary value into db")
 	}
 	return status.New(codes.OK, "Binary deleted")
@@ -307,7 +319,7 @@ func (repo *Repository) AddCard(clientId uuid.UUID, key string, number string, n
 				return status.New(codes.AlreadyExists, "Card for this user and key already exists")
 			}
 		}
-		fmt.Printf("Got err %v", err)
+		log.Printf("Error: %v", err)
 		return status.New(codes.Internal, "Unable to insert card value into db")
 	}
 	return status.New(codes.OK, "Card added")
@@ -332,7 +344,7 @@ func (repo *Repository) UpdateCard(clientId uuid.UUID, key string, number string
 				return status.New(codes.NotFound, "Card for this user and key doesn't exist")
 			}
 		}
-		fmt.Printf("Got err %v", err)
+		log.Printf("Error: %v", err)
 		return status.New(codes.Internal, "Unable to update card value into db")
 	}
 	return status.New(codes.OK, "Card updated")
@@ -351,7 +363,7 @@ func (repo *Repository) GetCard(clientId uuid.UUID, key string) (console.Card, *
 			fmt.Printf("Got no data for card key = %v", key)
 			return console.Card{}, status.New(codes.NotFound, "Card for this user and key doesn't exist")
 		}
-		fmt.Printf("Got err %v", err)
+		log.Printf("Error: %v", err)
 		return console.Card{}, status.New(codes.Internal, "Unable to update card value into db")
 	}
 	return card, status.New(codes.OK, "Card updated")
@@ -367,6 +379,7 @@ func (repo *Repository) DeleteCard(clientId uuid.UUID, key string) *status.Statu
 			fmt.Printf("Got no data for card key = %v", key)
 			return status.New(codes.NotFound, "Card for this user and key doesn't exist")
 		}
+		log.Printf("Error: %v", err)
 		return status.New(codes.Internal, "Unable to delete card value into db")
 	}
 	return status.New(codes.OK, "Card deleted")
