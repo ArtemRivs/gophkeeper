@@ -1,0 +1,21 @@
+services:
+  gophkeeper-srv:
+    build: ./
+    command: ./bin/gophkeeper-srv
+    ports:
+      - 3200:3200
+    depends_on:
+      - postgress
+    environment:
+      - HOST=:3200
+
+  postgres:
+    image: postgres:13.4
+    ports:
+      - 6432:5432
+    environment:
+      - POSTGRES_USER=GKAdmin
+      - POSTGRES_PASSWORD=GKPass
+      - POSTGRES_DB=gophkeeper
+    volumes:
+      - ./docker/postgres/data:/var/lib/postgresql/data
